@@ -1,0 +1,28 @@
+import React from "react";
+import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
+import Home from "./pages/Home";
+import Resume from "./pages/Resume";
+import Interview from "./pages/Interview";
+
+export default function App() {
+  return (
+    <Router>
+      <div className="min-h-screen bg-gray-50">
+        <nav className="bg-white shadow mb-4">
+          <div className="container mx-auto px-4 py-3 flex justify-between items-center">
+            <Link to="/" className="text-xl font-bold text-blue-600">Interview Chatbot</Link>
+            <div className="space-x-4">
+              <Link to="/resume" className="text-gray-700 hover:text-blue-600">Resume Review</Link>
+              <Link to="/interview" className="text-gray-700 hover:text-blue-600">Interview Simulation</Link>
+            </div>
+          </div>
+        </nav>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/resume" element={<Resume />} />
+          <Route path="/interview" element={<Interview />} />
+        </Routes>
+      </div>
+    </Router>
+  );
+}
