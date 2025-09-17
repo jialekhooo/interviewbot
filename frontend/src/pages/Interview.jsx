@@ -15,7 +15,7 @@ export default function Interview() {
     setError("");
     setFeedback(null);
     try {
-      const { data } = await axios.post("/api/interview/start", {
+      const { data } = await axios.post("https://interviewbot-rjsi.onrender.com/api/interview/start", {
         position: "Software Engineer",
         difficulty: "medium",
         question_types: ["behavioral", "technical"],

@@ -22,7 +22,7 @@ export default function Resume() {
     const formData = new FormData();
     formData.append("file", file);
     try {
-      const { data } = await axios.post("/api/resume/upload", formData, {
+      const { data } = await axios.post("https://interviewbot-rjsi.onrender.com/api/resume/upload", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
       setResult(data);

@@ -8,10 +8,15 @@
 
 [[redirects]]
   from = "/api/*"
-  to = "http://localhost:8000/api/:splat"
+  to = "https://interviewbot-rjsi.onrender.com/api/:splat"
   status = 200
 
 [[redirects]]
   from = "/static/*"
-  to = "http://localhost:8000/static/:splat"
+  to = "https://interviewbot-rjsi.onrender.com/static/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
   status = 200
