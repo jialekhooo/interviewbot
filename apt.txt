@@ -7,3 +7,5 @@ zlib1g-dev
 libjpeg-dev
 libpq-dev
 gcc
+tesseract-ocr
+tesseract-ocr-eng
