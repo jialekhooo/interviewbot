@@ -48,8 +48,10 @@ export default function Interview() {
   };
 
   return (
-    <div className="max-w-xl mx-auto mt-12 p-6 bg-white shadow rounded">
-      <h2 className="text-2xl font-bold mb-4 text-blue-600">Interview Simulation</h2>
+    <div className="container mx-auto px-4 py-8">
+      <div className="max-w-2xl mx-auto bg-white shadow-lg rounded-lg p-6">
+        <h2 className="text-3xl font-bold mb-6 text-blue-600">Interview Simulation</h2>
+        <p className="text-gray-600 mb-6">Practice your interview skills with AI-powered questions and feedback.</p>
       {!started ? (
         <button
           onClick={startInterview}
@@ -89,6 +91,7 @@ export default function Interview() {
         </>
       )}
       {error && <div className="text-red-600 mt-2">{error}</div>}
+      </div>
     </div>
   );
 }
