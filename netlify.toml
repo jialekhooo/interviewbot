@@ -1,0 +1,19 @@
+[build]
+  base = "frontend"
+  command = "npm run build"
+  publish = "frontend/dist"
+
+[[redirects]]
+  from = "/api/*"
+  to = "https://interviewbot-rjsi.onrender.com/api/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/static/*"
+  to = "https://interviewbot-rjsi.onrender.com/static/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
