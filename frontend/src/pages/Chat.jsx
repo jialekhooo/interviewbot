@@ -16,6 +16,12 @@ export default function Chat() {
     });
   };
 
+  const toDisplay = (val) => {
+    if (val == null) return "";
+    if (typeof val === "string") return val;
+    try { return JSON.stringify(val, null, 2); } catch { return String(val); }
+  };
+
   // Start a new interview session on mount
   useEffect(() => {
     const start = async () => {
@@ -42,11 +48,15 @@ export default function Chat() {
         setSessionId(data.session_id);
         setMessages([
           { role: "system", content: "Interview session started. Answer questions to receive feedback." },
-          { role: "assistant", content: data.question.text },
+          { role: "assistant", content: toDisplay(data.question.text) },
         ]);
         setStatus("");
+        // eslint-disable-next-line no-console
+        console.log("chat.start response", data);
       } catch (err) {
         setError(err?.response?.data?.detail || err?.response?.data?.error || err.message || "Failed to start session");
+        // eslint-disable-next-line no-console
+        console.error("chat.start error", err);
       } finally {
         setLoading(false);
         scrollToBottom();
@@ -86,7 +96,7 @@ export default function Chat() {
       }
 
       if (data?.type === "next_question" && data?.question?.text) {
-        setMessages(prev => [...prev, { role: "assistant", content: data.question.text }]);
+        setMessages(prev => [...prev, { role: "assistant", content: toDisplay(data.question.text) }]);
       } else if (data?.type === "interview_complete") {
         const overall = data.feedback || {};
         const summary = overall.summary || "Interview complete.";
@@ -120,7 +130,7 @@ export default function Chat() {
                 "inline-block px-3 py-2 rounded " +
                 (m.role === "user" ? "bg-blue-600 text-white" : m.role === "feedback" ? "bg-yellow-100 text-gray-800" : "bg-white border")
               }>
-                {m.content}
+                {toDisplay(m.content)}
               </div>
             </div>
           ))}
