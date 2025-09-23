@@ -1,7 +1,9 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import api from "../lib/api";
 
 export default function Interview() {
+  const navigate = useNavigate();
   const [started, setStarted] = useState(false);
   const [question, setQuestion] = useState(null);
   const [answer, setAnswer] = useState("");
@@ -69,6 +71,8 @@ export default function Interview() {
       setSessionId(data.session_id);
       setQuestion(data.question);
       setStarted(true);
+      // Redirect to AI Chat page to continue the conversation UI
+      navigate("/chat");
       setStatusMessage("");
     } catch (err) {
       console.error("startInterview error", err);
