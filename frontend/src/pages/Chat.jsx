@@ -19,6 +19,7 @@ export default function Chat() {
   const toDisplay = (val) => {
     if (val == null) return "";
     if (typeof val === "string") return val;
+    if (typeof val === "number" || typeof val === "boolean") return String(val);
     try { return JSON.stringify(val, null, 2); } catch { return String(val); }
   };
 
@@ -48,7 +49,7 @@ export default function Chat() {
         setSessionId(data.session_id);
         setMessages([
           { role: "system", content: "Interview session started. Answer questions to receive feedback." },
-          { role: "assistant", content: toDisplay(data.question.text) },
+          { role: "assistant", content: toDisplay(data.question?.text || data.question || "No question received") },
         ]);
         setStatus("");
         // eslint-disable-next-line no-console
@@ -86,20 +87,20 @@ export default function Chat() {
         // Show structured feedback if available
         const fb = data.feedback;
         let fbText = "";
-        if (fb.summary) fbText += fb.summary + "\n\n";
-        if (typeof fb.detailed_feedback === "string") fbText += fb.detailed_feedback;
+        if (fb.summary) fbText += toDisplay(fb.summary) + "\n\n";
+        if (typeof fb.detailed_feedback === "string") fbText += toDisplay(fb.detailed_feedback);
         if (Array.isArray(fb.detailed_feedback)) {
-          fbText += fb.detailed_feedback.map((x, i) => `• ${x.detailed_feedback || x.feedback || JSON.stringify(x)}`).join("\n");
+          fbText += fb.detailed_feedback.map((x, i) => `• ${toDisplay(x.detailed_feedback || x.feedback || x)}`).join("\n");
         }
-        if (!fbText) fbText = JSON.stringify(fb, null, 2);
+        if (!fbText) fbText = toDisplay(fb);
         setMessages(prev => [...prev, { role: "feedback", content: fbText }]);
       }
 
       if (data?.type === "next_question" && data?.question?.text) {
-        setMessages(prev => [...prev, { role: "assistant", content: toDisplay(data.question.text) }]);
+        setMessages(prev => [...prev, { role: "assistant", content: toDisplay(data.question?.text || data.question || "No question received") }]);
       } else if (data?.type === "interview_complete") {
         const overall = data.feedback || {};
-        const summary = overall.summary || "Interview complete.";
+        const summary = toDisplay(overall.summary || "Interview complete.");
         setMessages(prev => [...prev, { role: "assistant", content: summary }]);
       }
     } catch (err) {
@@ -135,7 +136,7 @@ export default function Chat() {
             </div>
           ))}
           {!messages.length && (
-            <div className="text-gray-500 text-sm">{status || "Starting session…"}</div>
+            <div className="text-gray-500 text-sm">{toDisplay(status || "Starting session…")}</div>
           )}
         </div>
         <div className="border-t p-3">
@@ -157,7 +158,7 @@ export default function Chat() {
               {loading ? "Sending…" : "Send"}
             </button>
           </div>
-          {error && <div className="text-red-600 text-sm mt-2">{error}</div>}
+          {error && <div className="text-red-600 text-sm mt-2">{toDisplay(error)}</div>}
         </div>
       </div>
     </div>
