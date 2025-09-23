@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: interview-chatbot-api
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11
+      # Set these in Render Dashboard (do NOT commit secrets)
+      - key: OPENAI_MODEL
+        value: gpt-4o-mini
+      # OPENAI_API_KEY should be added in the Render dashboard Secrets tab
+    healthCheckPath: /health
+    
+    # Optional: increase request/response timeouts for long AI calls
+    # healthCheckTimeoutSeconds: 10
+    
+    # For CORS, the FastAPI app already sets allow_origins=["*"]

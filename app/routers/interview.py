@@ -1,4 +1,5 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException
+from fastapi import Body, Request
 from typing import List, Dict, Optional
 import json
 import uuid
@@ -13,46 +14,170 @@ active_sessions: Dict[str, InterviewSession] = {}
 
 @router.post("/start")
 async def start_interview(
-    position: str,
-    difficulty: str = "medium",
-    question_types: List[str] = ["behavioral", "technical"],
-    duration: int = 30
+    request: Request,
+    payload: Optional[Dict] = Body(
+        default=None,
+        example={
+            "position": "Software Engineer",
+            "difficulty": "medium",
+            "question_types": ["behavioral", "technical"],
+            "duration": 30,
+        },
+    ),
+    position: Optional[str] = None,
+    difficulty: Optional[str] = None,
+    question_types: Optional[str] = None,
+    duration: Optional[int] = None,
 ):
     """
     Start a new interview session
     """
+    # Accept either JSON body or query/form params (Bubble-friendly)
+    body: Dict = {}
+    # Prefer explicit JSON body if provided by FastAPI
+    if payload is not None:
+        body = dict(payload)
+    else:
+        # Try to parse raw JSON body (handles incorrect headers)
+        try:
+            raw_json = await request.json()
+            if isinstance(raw_json, dict):
+                body = raw_json
+        except Exception:
+            body = {}
+        # If still empty, try form-data
+        if not body:
+            try:
+                form = await request.form()
+                body = dict(form)
+                # Handle repeated fields like question_types[]
+                if "question_types[]" in form:
+                    body["question_types"] = form.getlist("question_types[]")
+                # If multiple question_types keys, aggregate
+                qt_multi = [v for k, v in form.multi_items() if k == "question_types"]
+                if qt_multi:
+                    body["question_types"] = qt_multi
+            except Exception:
+                pass
+        # Finally, overlay query string params (highest precedence for explicit args)
+        if position is not None:
+            body["position"] = position
+        if difficulty is not None:
+            body["difficulty"] = difficulty
+        if question_types is not None:
+            # Allow comma-separated string e.g. "behavioral,technical"
+            body["question_types"] = [s.strip() for s in question_types.split(",") if s.strip()]
+        if duration is not None:
+            body["duration"] = duration
+
+    position = body.get("position", "Software Engineer")
+    difficulty = body.get("difficulty", "medium")
+    q_types = body.get("question_types", ["behavioral", "technical"])
+    # Normalize question_types to list[str]
+    if isinstance(q_types, str):
+        q_types = [s.strip() for s in q_types.split(",") if s.strip()]
+    elif not isinstance(q_types, list):
+        # Try to coerce to list if a single value came through
+        q_types = [str(q_types)] if q_types is not None else ["behavioral", "technical"]
+    duration = body.get("duration", 30)
+
     session_id = str(uuid.uuid4())
-    session = InterviewSession(
-        session_id=session_id,
-        position=position,
-        difficulty=difficulty,
-        question_types=question_types,
-        duration=duration,
-        start_time=datetime.utcnow(),
-        status="in_progress",
-        questions=[],
-        feedback=None
-    )
+    # Use a lightweight dict for session storage to avoid schema strictness here
+    session = {
+        "session_id": session_id,
+        "position": position,
+        "difficulty": difficulty,
+        "question_types": q_types,
+        "duration": duration,
+        "start_time": datetime.utcnow(),
+        "status": "in_progress",
+        "questions": [],
+        "feedback": []
+    }
     
     # Initialize the interview simulator
     simulator = InterviewSimulator(
         position=position,
         difficulty=difficulty,
-        question_types=question_types
+        question_types=q_types,
     )
     
     # Generate first question
     first_question = simulator.generate_question()
-    session.questions.append(first_question)
+    session["questions"].append(first_question)
     
     # Store the session
     active_sessions[session_id] = session
     
     return {
         "session_id": session_id,
-        "question": first_question.dict(),
-        "status": session.status
+        "question": first_question,
+        "status": session["status"]
     }
+
+@router.post("/answer")
+async def submit_answer(payload: Dict = Body(..., example={
+    "session_id": "uuid",
+    "response": "<your answer text>",
+    "time_taken": 60,
+    "confidence_level": 0.8
+})):
+    """
+    Submit an answer to the current question and receive AI feedback.
+    Returns feedback and the next question if the interview continues.
+    """
+    session_id = payload.get("session_id")
+    if not session_id or session_id not in active_sessions:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    session = active_sessions[session_id]
+    if not session.get("questions"):
+        raise HTTPException(status_code=400, detail="No question found in session")
+
+    # Recreate simulator based on session context
+    simulator = InterviewSimulator(
+        position=session["position"],
+        difficulty=session["difficulty"],
+        question_types=session["question_types"]
+    )
+
+    last_question = session["questions"][-1]
+    user_response = payload.get("response", "")
+    time_taken = payload.get("time_taken")
+    confidence_level = payload.get("confidence_level")
+
+    feedback = simulator.analyze_response(
+        question=last_question,
+        user_response=user_response,
+        time_taken=time_taken,
+        confidence_level=confidence_level
+    )
+
+    session["feedback"].append(feedback)
+
+    # Generate next question or end interview after 5 questions
+    if len(session["questions"]) < 5:
+        next_question = simulator.generate_question()
+        session["questions"].append(next_question)
+        return {
+            "type": "next_question",
+            "feedback": feedback,
+            "question": next_question,
+            "session_id": session_id
+        }
+    else:
+        session["status"] = "completed"
+        session["end_time"] = datetime.utcnow()
+        overall = simulator.generate_overall_feedback()
+        return {
+            "type": "interview_complete",
+            "feedback": overall,
+            "session_summary": {
+                "total_questions": len(session["questions"]),
+                "duration": (session["end_time"] - session["start_time"]).total_seconds() / 60
+            },
+            "session_id": session_id
+        }
 
 @router.websocket("/ws/{session_id}")
 async def websocket_interview(websocket: WebSocket, session_id: str):

@@ -24,6 +24,11 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 async def root():
     return {"message": "Welcome to the Interview Chatbot API"}
 
+@app.get("/health")
+async def health():
+    """Health check endpoint for Render/monitoring."""
+    return {"status": "ok"}
+
 # Import and include routers
 from app.routers import resume, interview, auth
 

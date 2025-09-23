@@ -15,7 +15,7 @@ export default function Interview() {
     setError("");
     setFeedback(null);
     try {
-      const { data } = await axios.post("https://interviewbot-rjsi.onrender.com/api/interview/start", {
+      const { data } = await axios.post("/api/interview/start", {
         position: "Software Engineer",
         difficulty: "medium",
         question_types: ["behavioral", "technical"],
@@ -32,16 +32,28 @@ export default function Interview() {
   };
 
   const submitAnswer = async () => {
+    if (!sessionId || !question) return;
     setLoading(true);
     setError("");
     setFeedback(null);
     try {
-      // For demo: just echo the answer as feedback
-      setFeedback({ summary: "(Demo) Feedback: Your answer was received." });
-      setAnswer("");
-      // In a real app, connect to WebSocket for live feedback
+      const { data } = await axios.post("/api/interview/answer", {
+        session_id: sessionId,
+        response: answer,
+        time_taken: null,
+        confidence_level: null,
+      });
+
+      if (data.type === "next_question") {
+        setFeedback(data.feedback);
+        setQuestion(data.question);
+        setAnswer("");
+      } else if (data.type === "interview_complete") {
+        setFeedback(data.feedback);
+        setQuestion(null);
+      }
     } catch (err) {
-      setError("Submission failed");
+      setError(err.response?.data?.detail || "Submission failed");
     } finally {
       setLoading(false);
     }
@@ -85,7 +97,14 @@ export default function Interview() {
           {feedback && (
             <div className="mt-4 bg-gray-100 p-3 rounded">
               <div className="font-semibold mb-1">Feedback</div>
-              <div>{feedback.summary}</div>
+              {feedback.summary && <div className="mb-2">{feedback.summary}</div>}
+              {feedback.detailed_feedback && Array.isArray(feedback.detailed_feedback) && (
+                <ul className="text-sm text-gray-700">
+                  {feedback.detailed_feedback.map((fb, idx) => (
+                    <li key={idx} className="mb-1">• {fb.detailed_feedback || fb.feedback || JSON.stringify(fb)}</li>
+                  ))}
+                </ul>
+              )}
             </div>
           )}
         </>

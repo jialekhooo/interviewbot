@@ -6,8 +6,6 @@ import pdfplumber
 from docx import Document
 from typing import Dict, Any, Optional, List
 from datetime import datetime
-import pytesseract
-from PIL import Image
 import io
 import tempfile
 import logging
@@ -16,8 +14,12 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Load English language model for NLP
-nlp = spacy.load("en_core_web_sm")
+# Load English language model for NLP (optional)
+try:
+    nlp = spacy.load("en_core_web_sm")
+except Exception as e:
+    logger.warning("spaCy model 'en_core_web_sm' not found. Resume parsing will be basic. To enable NLP features, install the model: python -m spacy download en_core_web_sm")
+    nlp = None
 
 class ResumeParser:
     """
@@ -34,7 +36,7 @@ class ResumeParser:
         self.file_path = file_path
         self.file_extension = os.path.splitext(file_path)[1].lower()
         self.text = self._extract_text()
-        self.doc = nlp(self.text) if self.text else None
+        self.doc = nlp(self.text) if (self.text and nlp is not None) else None
         
     def _extract_text(self) -> str:
         """Extract text from the resume file based on its format."""
@@ -65,6 +67,14 @@ class ResumeParser:
                     else:
                         # Fallback to OCR if no text is found
                         try:
+                            # Lazy import OCR dependencies
+                            try:
+                                import pytesseract  # type: ignore
+                                from PIL import Image  # type: ignore
+                            except Exception as ie:
+                                logger.warning("OCR dependencies not available (pytesseract/Pillow). Skipping OCR.")
+                                raise ie
+
                             img = page.to_image()
                             img_bytes = io.BytesIO()
                             img.save(img_bytes, format='PNG')
@@ -72,7 +82,7 @@ class ResumeParser:
                             page_text = pytesseract.image_to_string(Image.open(img_bytes))
                             text += page_text + "\n"
                         except Exception as e:
-                            logger.warning(f"OCR failed for page: {str(e)}")
+                            logger.warning(f"OCR failed or unavailable for page: {str(e)}")
         except Exception as e:
             logger.error(f"Error reading PDF: {str(e)}")
             raise
@@ -104,7 +114,16 @@ class ResumeParser:
             Dict containing structured resume data
         """
         if not self.doc:
-            return {}
+            # Basic fallback parsing without spaCy model
+            return {
+                "name": "",
+                "contact_info": self._extract_contact_info(),
+                "education": [],
+                "experience": [],
+                "skills": [],
+                "summary": "",
+                "raw_text": self.text
+            }
             
         return {
             "name": self._extract_name(),

@@ -1,12 +1,12 @@
 import random
 import json
 import logging
-import openai
 from typing import List, Dict, Optional, Any
 from datetime import datetime
 from enum import Enum
 import os
 from dotenv import load_dotenv
+from openai import OpenAI
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -15,8 +15,10 @@ logger = logging.getLogger(__name__)
 # Load environment variables
 load_dotenv()
 
-# Configure OpenAI API
-openai.api_key = os.getenv("OPENAI_API_KEY")
+# Configure OpenAI API client
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 
 class QuestionType(str, Enum):
     BEHAVIORAL = "behavioral"
@@ -263,9 +265,12 @@ class InterviewSimulator:
         try:
             # Use OpenAI to analyze the response
             prompt = self._create_analysis_prompt(question, user_response)
-            
-            response = openai.ChatCompletion.create(
-                model="gpt-4",
+
+            if client is None:
+                raise RuntimeError("OPENAI_API_KEY is not set. Please configure it in your environment.")
+
+            response = client.chat.completions.create(
+                model=OPENAI_MODEL,
                 messages=[
                     {"role": "system", "content": "You are an experienced technical interviewer providing detailed feedback on interview responses."},
                     {"role": "user", "content": prompt}
@@ -273,7 +278,7 @@ class InterviewSimulator:
                 temperature=0.7,
                 max_tokens=1000
             )
-            
+
             # Parse the response
             feedback_text = response.choices[0].message.content
             feedback_data = self._parse_feedback(feedback_text)
