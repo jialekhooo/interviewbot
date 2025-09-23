@@ -9,23 +9,64 @@ export default function Interview() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [sessionId, setSessionId] = useState(null);
+  const [debugInfo, setDebugInfo] = useState(null);
+  const [statusMessage, setStatusMessage] = useState("");
+
+  // Helper to POST with timeout + retry to handle Render cold starts / transient errors
+  const postWithRetry = async (url, body, { retries = 2, timeout = 15000 } = {}) => {
+    let attempt = 0;
+    let lastErr;
+    while (attempt <= retries) {
+      try {
+        return await axios.post(url, body, { timeout });
+      } catch (err) {
+        lastErr = err;
+        const status = err?.response?.status;
+        const retriable = !status || [429, 500, 502, 503, 504].includes(status);
+        if (!retriable || attempt === retries) break;
+        const backoffMs = 1000 * Math.pow(2, attempt);
+        setStatusMessage(`Server warming up (attempt ${attempt + 2}/${retries + 1})… retrying in ${backoffMs / 1000}s`);
+        await new Promise(r => setTimeout(r, backoffMs));
+        attempt += 1;
+      }
+    }
+    throw lastErr;
+  };
 
   const startInterview = async () => {
     setLoading(true);
     setError("");
     setFeedback(null);
     try {
-      const { data } = await axios.post("/api/interview/start", {
+      setStatusMessage("Contacting server… this can take up to 30s on cold start");
+      // Warm up Render service: a quick GET that is expected to 405 but wakes the server
+      try {
+        await axios.get("/api/interview/start", { timeout: 5000 });
+      } catch (werr) {
+        // Intentionally ignore; 405/404 is fine as long as it hits the server
+      }
+      const { data } = await postWithRetry("/api/interview/start", {
         position: "Software Engineer",
         difficulty: "medium",
         question_types: ["behavioral", "technical"],
         duration: 30,
-      });
+      }, { retries: 2, timeout: 20000 });
+      console.log("/api/interview/start response", data);
+      setDebugInfo({ startResponse: data });
       setSessionId(data.session_id);
       setQuestion(data.question);
       setStarted(true);
+      setStatusMessage("");
     } catch (err) {
-      setError(err.response?.data?.detail || "Failed to start interview");
+      console.error("startInterview error", err);
+      setError(
+        err.response?.data?.detail ||
+          err.response?.data?.error ||
+          err.message ||
+          "Failed to start interview"
+      );
+      setDebugInfo({ startError: err.response?.data || err.toString?.() });
+      setStatusMessage("Failed to reach server. Please try again in a few seconds.");
     } finally {
       setLoading(false);
     }
@@ -37,12 +78,15 @@ export default function Interview() {
     setError("");
     setFeedback(null);
     try {
-      const { data } = await axios.post("/api/interview/answer", {
+      setStatusMessage("");
+      const { data } = await postWithRetry("/api/interview/answer", {
         session_id: sessionId,
         response: answer,
         time_taken: null,
         confidence_level: null,
-      });
+      }, { retries: 1, timeout: 20000 });
+      console.log("/api/interview/answer response", data);
+      setDebugInfo((prev) => ({ ...(prev || {}), answerResponse: data }));
 
       if (data.type === "next_question") {
         setFeedback(data.feedback);
@@ -53,7 +97,14 @@ export default function Interview() {
         setQuestion(null);
       }
     } catch (err) {
-      setError(err.response?.data?.detail || "Submission failed");
+      console.error("submitAnswer error", err);
+      setError(
+        err.response?.data?.detail ||
+          err.response?.data?.error ||
+          err.message ||
+          "Submission failed"
+      );
+      setDebugInfo((prev) => ({ ...(prev || {}), answerError: err.response?.data || err.toString?.() }));
     } finally {
       setLoading(false);
     }
@@ -64,6 +115,9 @@ export default function Interview() {
       <div className="max-w-2xl mx-auto bg-white shadow-lg rounded-lg p-6">
         <h2 className="text-3xl font-bold mb-6 text-blue-600">Interview Simulation</h2>
         <p className="text-gray-600 mb-6">Practice your interview skills with AI-powered questions and feedback.</p>
+        {statusMessage && (
+          <div className="mb-3 text-sm text-gray-600">{statusMessage}</div>
+        )}
       {!started ? (
         <button
           onClick={startInterview}
@@ -74,11 +128,13 @@ export default function Interview() {
         </button>
       ) : (
         <>
-          {question && (
+          {question ? (
             <div className="mb-4">
               <div className="font-semibold">Question:</div>
               <div className="mb-2 text-gray-800">{question.text}</div>
             </div>
+          ) : started && (
+            <div className="mb-4 text-sm text-gray-600">Waiting for question...</div>
           )}
           <textarea
             value={answer}
@@ -94,18 +150,61 @@ export default function Interview() {
           >
             {loading ? "Submitting..." : "Submit Answer"}
           </button>
-          {feedback && (
+          {feedback ? (
             <div className="mt-4 bg-gray-100 p-3 rounded">
               <div className="font-semibold mb-1">Feedback</div>
+              {/* Overall feedback (summary + array of detailed entries) */}
               {feedback.summary && <div className="mb-2">{feedback.summary}</div>}
-              {feedback.detailed_feedback && Array.isArray(feedback.detailed_feedback) && (
+
+              {/* Per-question feedback: show string detailed_feedback */}
+              {typeof feedback.detailed_feedback === "string" && (
+                <div className="text-sm text-gray-700 whitespace-pre-wrap">{feedback.detailed_feedback}</div>
+              )}
+
+              {/* Overall detailed list or structured array */}
+              {Array.isArray(feedback.detailed_feedback) && (
                 <ul className="text-sm text-gray-700">
                   {feedback.detailed_feedback.map((fb, idx) => (
                     <li key={idx} className="mb-1">• {fb.detailed_feedback || fb.feedback || JSON.stringify(fb)}</li>
                   ))}
                 </ul>
               )}
+
+              {/* Optional extra fields if present */}
+              {Array.isArray(feedback.strengths) && feedback.strengths.length > 0 && (
+                <div className="mt-2">
+                  <div className="font-medium">Strengths</div>
+                  <ul className="list-disc list-inside text-sm text-gray-700">
+                    {feedback.strengths.map((s, i) => (
+                      <li key={i}>{s}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {Array.isArray(feedback.areas_for_improvement) && feedback.areas_for_improvement.length > 0 && (
+                <div className="mt-2">
+                  <div className="font-medium">Areas for Improvement</div>
+                  <ul className="list-disc list-inside text-sm text-gray-700">
+                    {feedback.areas_for_improvement.map((s, i) => (
+                      <li key={i}>{s}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {typeof feedback.score === "number" && (
+                <div className="mt-2 text-sm text-gray-700">Score: {feedback.score.toFixed(1)} / 1.0</div>
+              )}
+              {feedback.error && (
+                <div className="mt-2 text-sm text-red-600">{feedback.error}</div>
+              )}
             </div>
+          ) : null}
+          {/* Debug info (only shown if there is an error) */}
+          {error && debugInfo && (
+            <details className="mt-3 text-xs text-gray-500">
+              <summary>Debug details</summary>
+              <pre className="whitespace-pre-wrap break-words">{JSON.stringify(debugInfo, null, 2)}</pre>
+            </details>
           )}
         </>
       )}
