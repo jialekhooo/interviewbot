@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import axios from "axios";
+import api from "../lib/api";
 
 export default function Interview() {
   const [started, setStarted] = useState(false);
@@ -18,7 +18,7 @@ export default function Interview() {
     let lastErr;
     while (attempt <= retries) {
       try {
-        return await axios.post(url, body, { timeout });
+        return await api.post(url, body, { timeout });
       } catch (err) {
         lastErr = err;
         const status = err?.response?.status;
@@ -41,7 +41,7 @@ export default function Interview() {
       setStatusMessage("Contacting server… this can take up to 30s on cold start");
       // Warm up Render service: a quick GET that is expected to 405 but wakes the server
       try {
-        await axios.get("/api/interview/start", { timeout: 5000 });
+        await api.get("/api/interview/start", { timeout: 5000 });
       } catch (werr) {
         // Intentionally ignore; 405/404 is fine as long as it hits the server
       }
