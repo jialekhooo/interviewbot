@@ -11,9 +11,10 @@ export default function Interview() {
   const [sessionId, setSessionId] = useState(null);
   const [debugInfo, setDebugInfo] = useState(null);
   const [statusMessage, setStatusMessage] = useState("");
+  const [lastStartInfo, setLastStartInfo] = useState(null);
 
   // Helper to POST with timeout + retry to handle Render cold starts / transient errors
-  const postWithRetry = async (url, body, { retries = 2, timeout = 15000 } = {}) => {
+  const postWithRetry = async (url, body, { retries = 3, timeout = 45000 } = {}) => {
     let attempt = 0;
     let lastErr;
     while (attempt <= retries) {
@@ -45,14 +46,26 @@ export default function Interview() {
       } catch (werr) {
         // Intentionally ignore; 405/404 is fine as long as it hits the server
       }
-      const { data } = await postWithRetry("/api/interview/start", {
+      const resp = await postWithRetry("/api/interview/start", {
         position: "Software Engineer",
         difficulty: "medium",
         question_types: ["behavioral", "technical"],
         duration: 30,
-      }, { retries: 2, timeout: 20000 });
+      }, { retries: 3, timeout: 45000 });
+      const data = resp?.data;
       console.log("/api/interview/start response", data);
       setDebugInfo({ startResponse: data });
+      setLastStartInfo({
+        url: `${api.defaults.baseURL || ''}/api/interview/start`,
+        method: "POST",
+        response: data,
+      });
+      if (!data || !data.session_id || !data.question) {
+        setError("Server responded without a question. Please try again shortly.");
+        setDebugInfo((prev) => ({ ...(prev || {}), startData: data }));
+        setStatusMessage("");
+        return;
+      }
       setSessionId(data.session_id);
       setQuestion(data.question);
       setStarted(true);
@@ -67,6 +80,12 @@ export default function Interview() {
       );
       setDebugInfo({ startError: err.response?.data || err.toString?.() });
       setStatusMessage("Failed to reach server. Please try again in a few seconds.");
+      setLastStartInfo({
+        url: `${api.defaults.baseURL || ''}/api/interview/start`,
+        method: "POST",
+        error: err.response?.data || err.message || String(err),
+        status: err.response?.status,
+      });
     } finally {
       setLoading(false);
     }
@@ -84,7 +103,7 @@ export default function Interview() {
         response: answer,
         time_taken: null,
         confidence_level: null,
-      }, { retries: 1, timeout: 20000 });
+      }, { retries: 2, timeout: 45000 });
       console.log("/api/interview/answer response", data);
       setDebugInfo((prev) => ({ ...(prev || {}), answerResponse: data }));
 
@@ -204,6 +223,19 @@ export default function Interview() {
             <details className="mt-3 text-xs text-gray-500">
               <summary>Debug details</summary>
               <pre className="whitespace-pre-wrap break-words">{JSON.stringify(debugInfo, null, 2)}</pre>
+            </details>
+          )}
+          {/* Always-visible start response inspector for troubleshooting */}
+          {lastStartInfo && (
+            <details className="mt-3 text-xs text-gray-600">
+              <summary>Start request inspector</summary>
+              <div className="mb-1">URL: {lastStartInfo.url || "/api/interview/start"}</div>
+              <div className="mb-1">Method: {lastStartInfo.method}</div>
+              {lastStartInfo.status && <div className="mb-1">Status: {lastStartInfo.status}</div>}
+              <div className="mb-1 font-medium">Response/Error:</div>
+              <pre className="whitespace-pre-wrap break-words">
+                {JSON.stringify(lastStartInfo.response || lastStartInfo.error, null, 2)}
+              </pre>
             </details>
           )}
         </>
