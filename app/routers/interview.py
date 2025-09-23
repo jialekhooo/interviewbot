@@ -1,5 +1,5 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException
-from fastapi import Body, Request
+from fastapi import Request
 from typing import List, Dict, Optional
 import json
 import uuid
@@ -15,15 +15,6 @@ active_sessions: Dict[str, InterviewSession] = {}
 @router.post("/start")
 async def start_interview(
     request: Request,
-    payload: Optional[Dict] = Body(
-        default=None,
-        example={
-            "position": "Software Engineer",
-            "difficulty": "medium",
-            "question_types": ["behavioral", "technical"],
-            "duration": 30,
-        },
-    ),
     position: Optional[str] = None,
     difficulty: Optional[str] = None,
     question_types: Optional[str] = None,
@@ -34,41 +25,37 @@ async def start_interview(
     """
     # Accept either JSON body or query/form params (Bubble-friendly)
     body: Dict = {}
-    # Prefer explicit JSON body if provided by FastAPI
-    if payload is not None:
-        body = dict(payload)
-    else:
-        # Try to parse raw JSON body (handles incorrect headers)
+    # Try to parse raw JSON body
+    try:
+        raw_json = await request.json()
+        if isinstance(raw_json, dict):
+            body = raw_json
+    except Exception:
+        body = {}
+    # If still empty, try form-data
+    if not body:
         try:
-            raw_json = await request.json()
-            if isinstance(raw_json, dict):
-                body = raw_json
+            form = await request.form()
+            body = dict(form)
+            # Handle repeated fields like question_types[]
+            if "question_types[]" in form:
+                body["question_types"] = form.getlist("question_types[]")
+            # If multiple question_types keys, aggregate
+            qt_multi = [v for k, v in form.multi_items() if k == "question_types"]
+            if qt_multi:
+                body["question_types"] = qt_multi
         except Exception:
-            body = {}
-        # If still empty, try form-data
-        if not body:
-            try:
-                form = await request.form()
-                body = dict(form)
-                # Handle repeated fields like question_types[]
-                if "question_types[]" in form:
-                    body["question_types"] = form.getlist("question_types[]")
-                # If multiple question_types keys, aggregate
-                qt_multi = [v for k, v in form.multi_items() if k == "question_types"]
-                if qt_multi:
-                    body["question_types"] = qt_multi
-            except Exception:
-                pass
-        # Finally, overlay query string params (highest precedence for explicit args)
-        if position is not None:
-            body["position"] = position
-        if difficulty is not None:
-            body["difficulty"] = difficulty
-        if question_types is not None:
-            # Allow comma-separated string e.g. "behavioral,technical"
-            body["question_types"] = [s.strip() for s in question_types.split(",") if s.strip()]
-        if duration is not None:
-            body["duration"] = duration
+            pass
+    # Finally, overlay query string params (highest precedence for explicit args)
+    if position is not None:
+        body["position"] = position
+    if difficulty is not None:
+        body["difficulty"] = difficulty
+    if question_types is not None:
+        # Allow comma-separated string e.g. "behavioral,technical"
+        body["question_types"] = [s.strip() for s in question_types.split(",") if s.strip()]
+    if duration is not None:
+        body["duration"] = duration
 
     position = body.get("position", "Software Engineer")
     difficulty = body.get("difficulty", "medium")
