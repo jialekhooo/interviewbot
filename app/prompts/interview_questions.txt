@@ -1,0 +1,12 @@
+You are a professional interviewer. The candidate has the following resume:
+
+{resume_json}
+
+The job description is:
+
+{job_description_text}
+
+1. Generate 5 technical and 5 behavioral interview questions likely to be asked.
+2. Provide a sample answer for each question based on the candidate's experience.
+3. Structure the output in JSON format.
+

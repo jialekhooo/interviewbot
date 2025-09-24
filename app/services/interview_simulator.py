@@ -7,6 +7,8 @@ from enum import Enum
 import os
 from dotenv import load_dotenv
 from openai import OpenAI
+from ..utils.prompt_utils import fill_prompt
+from .gpt_service import gpt_service
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

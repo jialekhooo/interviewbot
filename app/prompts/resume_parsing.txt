@@ -1,0 +1,15 @@
+You are an expert career advisor. A student uploaded the following resume text:
+
+{resume_text}
+
+1. Extract the following information in JSON format:
+   - Name
+   - Email
+   - Phone
+   - Education
+   - Work Experience
+   - Projects
+   - Skills
+
+2. Provide 3 suggestions to improve the resume for job applications, focusing on technical skills, soft skills, and action-oriented bullet points.
+
