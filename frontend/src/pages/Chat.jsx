@@ -20,6 +20,27 @@ export default function Chat() {
     if (val == null) return "";
     if (typeof val === "string") return val;
     if (typeof val === "number" || typeof val === "boolean") return String(val);
+    
+    // Handle arrays (like FastAPI validation errors)
+    if (Array.isArray(val)) {
+      return val.map(item => {
+        if (typeof item === "object" && item.msg) {
+          return `${item.loc ? item.loc.join('.') + ': ' : ''}${item.msg}`;
+        }
+        return toDisplay(item);
+      }).join('; ');
+    }
+    
+    // Handle objects
+    if (typeof val === "object") {
+      // Special handling for FastAPI error format
+      if (val.detail && Array.isArray(val.detail)) {
+        return toDisplay(val.detail);
+      }
+      if (val.msg) return val.msg;
+      if (val.message) return val.message;
+    }
+    
     try { return JSON.stringify(val, null, 2); } catch { return String(val); }
   };
 
@@ -55,7 +76,8 @@ export default function Chat() {
         // eslint-disable-next-line no-console
         console.log("chat.start response", data);
       } catch (err) {
-        setError(err?.response?.data?.detail || err?.response?.data?.error || err.message || "Failed to start session");
+        const errorMsg = err?.response?.data?.detail || err?.response?.data?.error || err.message || "Failed to start session";
+        setError(toDisplay(errorMsg));
         // eslint-disable-next-line no-console
         console.error("chat.start error", err);
       } finally {
@@ -102,7 +124,8 @@ export default function Chat() {
         // eslint-disable-next-line no-console
         console.log("chat.retry response", data);
       } catch (err) {
-        setError(err?.response?.data?.detail || err?.response?.data?.error || err.message || "Failed to start session");
+        const errorMsg = err?.response?.data?.detail || err?.response?.data?.error || err.message || "Failed to start session";
+        setError(toDisplay(errorMsg));
         // eslint-disable-next-line no-console
         console.error("chat.retry error", err);
       } finally {
@@ -154,7 +177,8 @@ export default function Chat() {
         setMessages(prev => [...prev, { role: "assistant", content: summary }]);
       }
     } catch (err) {
-      setError(err?.response?.data?.detail || err?.response?.data?.error || err.message || "Failed to submit answer");
+      const errorMsg = err?.response?.data?.detail || err?.response?.data?.error || err.message || "Failed to submit answer";
+      setError(toDisplay(errorMsg));
     } finally {
       setLoading(false);
       scrollToBottom();
