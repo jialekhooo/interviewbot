@@ -24,13 +24,13 @@ fake_users_db = {
         "username": "testuser",
         "full_name": "Test User",
         "email": "test@example.com",
-        "hashed_password": "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW",  # password: test123
+        "hashed_password": f"{CryptContext(schemes=['bcrypt'], deprecated='auto').hash('test123')}",  # password: test123
         "disabled": False,
     }
 }
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/token")
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
@@ -62,28 +62,40 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     return encoded_jwt
 
 async def get_current_user(token: str = Depends(oauth2_scheme)):
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
         if username is None:
-            raise credentials_exception
-        token_data = TokenData(username=username)
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid authentication token",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        return {"username": username}
     except JWTError:
-        raise credentials_exception
-    user = get_user(fake_users_db, username=token_data.username)
-    if user is None:
-        raise credentials_exception
-    return user
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
-async def get_current_active_user(current_user: User = Depends(get_current_user)):
-    if current_user.disabled:
+async def get_current_active_user(current_user: dict = Depends(get_current_user)) -> User:
+    """
+    Validate that the current user is active and return it as a User model.
+    """
+    # Wrap the DB record into UserInDB for safety
+    user_record = fake_users_db.get(current_user["username"])
+    if not user_record:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user_in_db = UserInDB(**user_record)  # ✅ Use Pydantic model for validation
+
+    if user_in_db.disabled:
         raise HTTPException(status_code=400, detail="Inactive user")
-    return current_user
+
+    # Return a safe public-facing User object (without hashed_password)
+    return User(**user_in_db.dict())
+
 
 @router.post("/token", response_model=Token)
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):

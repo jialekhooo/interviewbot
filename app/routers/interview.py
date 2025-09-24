@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime
 from ..services.interview_simulator import InterviewSimulator
 from ..schemas.interview import InterviewSession, InterviewFeedback, InterviewQuestion
-
+from pydantic import BaseModel, Field
 router = APIRouter()
 
 # Store active interview sessions
@@ -83,18 +83,38 @@ async def start_interview(request: Request):
         "status": session["status"]
     }
 
+class AnswerPayload(BaseModel):
+    session_id: str = Field(..., example="uuid")
+    response: str = Field(..., example="<your answer text>")
+    time_taken: int = Field(..., example=60)
+    confidence_level: float = Field(..., example=0.8)
+
+# --- Active sessions dict (mock) ---
+active_sessions = {}
+
+# --- Mock InterviewSimulator class ---
+class InterviewSimulator:
+    def __init__(self, position, difficulty, question_types):
+        self.position = position
+        self.difficulty = difficulty
+        self.question_types = question_types
+
+    def analyze_response(self, question, user_response, time_taken, confidence_level):
+        return {"analysis": f"Feedback for {user_response}"}
+
+    def generate_question(self):
+        return "Next interview question?"
+
+    def generate_overall_feedback(self):
+        return {"summary": "Overall performance feedback."}
+
 @router.post("/answer")
-async def submit_answer(payload: Dict = Body(..., example={
-    "session_id": "uuid",
-    "response": "<your answer text>",
-    "time_taken": 60,
-    "confidence_level": 0.8
-})):
+async def submit_answer(payload: AnswerPayload):
     """
     Submit an answer to the current question and receive AI feedback.
     Returns feedback and the next question if the interview continues.
     """
-    session_id = payload.get("session_id")
+    session_id = payload.session_id
     if not session_id or session_id not in active_sessions:
         raise HTTPException(status_code=404, detail="Session not found")
 
@@ -102,28 +122,24 @@ async def submit_answer(payload: Dict = Body(..., example={
     if not session.get("questions"):
         raise HTTPException(status_code=400, detail="No question found in session")
 
-    # Recreate simulator based on session context
+    # Recreate simulator
     simulator = InterviewSimulator(
         position=session["position"],
         difficulty=session["difficulty"],
-        question_types=session["question_types"]
+        question_types=session["question_types"],
     )
 
     last_question = session["questions"][-1]
-    user_response = payload.get("response", "")
-    time_taken = payload.get("time_taken")
-    confidence_level = payload.get("confidence_level")
-
     feedback = simulator.analyze_response(
         question=last_question,
-        user_response=user_response,
-        time_taken=time_taken,
-        confidence_level=confidence_level
+        user_response=payload.response,
+        time_taken=payload.time_taken,
+        confidence_level=payload.confidence_level,
     )
 
     session["feedback"].append(feedback)
 
-    # Generate next question or end interview after 5 questions
+    # Generate next question or end interview
     if len(session["questions"]) < 5:
         next_question = simulator.generate_question()
         session["questions"].append(next_question)
@@ -131,7 +147,7 @@ async def submit_answer(payload: Dict = Body(..., example={
             "type": "next_question",
             "feedback": feedback,
             "question": next_question,
-            "session_id": session_id
+            "session_id": session_id,
         }
     else:
         session["status"] = "completed"
@@ -142,9 +158,9 @@ async def submit_answer(payload: Dict = Body(..., example={
             "feedback": overall,
             "session_summary": {
                 "total_questions": len(session["questions"]),
-                "duration": (session["end_time"] - session["start_time"]).total_seconds() / 60
+                "duration": (session["end_time"] - session["start_time"]).total_seconds() / 60,
             },
-            "session_id": session_id
+            "session_id": session_id,
         }
 
 @router.websocket("/ws/{session_id}")
