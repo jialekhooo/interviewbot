@@ -12,50 +12,31 @@ router = APIRouter()
 # Store active interview sessions
 active_sessions: Dict[str, InterviewSession] = {}
 
+@router.get("/health")
+async def interview_health():
+    """Health check for interview service"""
+    return {"status": "ok", "service": "interview", "active_sessions": len(active_sessions)}
+
 @router.post("/start")
-async def start_interview(
-    request: Request,
-    position: Optional[str] = None,
-    difficulty: Optional[str] = None,
-    question_types: Optional[str] = None,
-    duration: Optional[int] = None,
-):
+async def start_interview(request: Request):
     """
     Start a new interview session
     """
-    # Accept either JSON body or query/form params (Bubble-friendly)
+    # Parse JSON body with defaults
     body: Dict = {}
-    # Try to parse raw JSON body
     try:
-        raw_json = await request.json()
-        if isinstance(raw_json, dict):
-            body = raw_json
+        body = await request.json()
     except Exception:
-        body = {}
-    # If still empty, try form-data
-    if not body:
+        # If JSON parsing fails, try form data
         try:
             form = await request.form()
             body = dict(form)
             # Handle repeated fields like question_types[]
             if "question_types[]" in form:
                 body["question_types"] = form.getlist("question_types[]")
-            # If multiple question_types keys, aggregate
-            qt_multi = [v for k, v in form.multi_items() if k == "question_types"]
-            if qt_multi:
-                body["question_types"] = qt_multi
         except Exception:
-            pass
-    # Finally, overlay query string params (highest precedence for explicit args)
-    if position is not None:
-        body["position"] = position
-    if difficulty is not None:
-        body["difficulty"] = difficulty
-    if question_types is not None:
-        # Allow comma-separated string e.g. "behavioral,technical"
-        body["question_types"] = [s.strip() for s in question_types.split(",") if s.strip()]
-    if duration is not None:
-        body["duration"] = duration
+            # If both fail, use empty dict (will use defaults below)
+            body = {}
 
     position = body.get("position", "Software Engineer")
     difficulty = body.get("difficulty", "medium")
