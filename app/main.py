@@ -30,7 +30,7 @@ async def health():
     return {"status": "ok"}
 
 # Import and include routers
-from app.routers import resume, interview, auth, guidance, mock, improvement
+from app.routers import resume, interview, auth, guidance, mock, improvement, bubble_integration
 
 app.include_router(resume.router, prefix="/api/resume", tags=["resume"])
 app.include_router(interview.router, prefix="/api/interview", tags=["interview"])
@@ -38,6 +38,7 @@ app.include_router(auth.router, prefix="/api/auth", tags=["authentication"])
 app.include_router(guidance.router, prefix="/api/guidance", tags=["guidance"])
 app.include_router(mock.router, prefix="/api/mock", tags=["mock_interview"])
 app.include_router(improvement.router, prefix="/api/improvement", tags=["resume_improvement"])
+app.include_router(bubble_integration.router, prefix="/api/bubble", tags=["bubble_integration"])
 
 if __name__ == "__main__":
     import uvicorn
