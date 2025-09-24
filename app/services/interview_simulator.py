@@ -51,13 +51,42 @@ class InterviewSimulator:
             resume_data: Optional resume data to tailor questions
         """
         self.position = position
-        self.difficulty = difficulty
-        self.question_types = question_types or [
-            QuestionType.BEHAVIORAL,
-            QuestionType.TECHNICAL,
-            QuestionType.SYSTEM_DESIGN,
-            QuestionType.CULTURE_FIT
-        ]
+
+        # Coerce difficulty into DifficultyLevel enum
+        if isinstance(difficulty, DifficultyLevel):
+            self.difficulty = difficulty
+        elif isinstance(difficulty, str):
+            try:
+                self.difficulty = DifficultyLevel(difficulty.lower())
+            except Exception:
+                self.difficulty = DifficultyLevel.MEDIUM
+        else:
+            self.difficulty = DifficultyLevel.MEDIUM
+
+        # Coerce question_types into List[QuestionType]
+        def _coerce_qtypes(qtypes: Optional[List[Any]]) -> List[QuestionType]:
+            if not qtypes:
+                return [
+                    QuestionType.BEHAVIORAL,
+                    QuestionType.TECHNICAL,
+                    QuestionType.SYSTEM_DESIGN,
+                    QuestionType.CULTURE_FIT,
+                ]
+            coerced: List[QuestionType] = []
+            for qt in qtypes:
+                if isinstance(qt, QuestionType):
+                    coerced.append(qt)
+                elif isinstance(qt, str):
+                    val = qt.lower().strip()
+                    for enum_val in QuestionType:
+                        if enum_val.value == val:
+                            coerced.append(enum_val)
+                            break
+            if not coerced:
+                coerced = [QuestionType.BEHAVIORAL, QuestionType.TECHNICAL]
+            return coerced
+
+        self.question_types = _coerce_qtypes(question_types)
         self.resume_data = resume_data or {}
         self.questions_asked = []
         self.responses = []
@@ -193,6 +222,12 @@ class InterviewSimulator:
         if not question_type:
             # Randomly select a question type if not specified
             question_type = random.choice(self.question_types)
+        elif isinstance(question_type, str):
+            # Coerce incoming string to enum
+            try:
+                question_type = QuestionType(question_type.lower())
+            except Exception:
+                question_type = random.choice(self.question_types)
         
         # Filter questions by type and difficulty
         available_questions = [
@@ -224,8 +259,8 @@ class InterviewSimulator:
         question = {
             "question_id": question_id,
             "text": question_data["question"],
-            "question_type": question_type,
-            "difficulty": question_data["difficulty"],
+            "question_type": question_type.value,
+            "difficulty": question_data["difficulty"].value,
             "category": question_type.value,
             "time_limit": 180,  # 3 minutes by default
             "evaluation_criteria": question_data.get("evaluation_criteria", []),
