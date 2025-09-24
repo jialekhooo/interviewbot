@@ -8,23 +8,30 @@ load_dotenv()
 
 class GPTService:
     def __init__(self):
-        api_key = os.getenv("OPENAI_API_KEY")
-        if api_key:
-            try:
-                self.client = OpenAI(api_key=api_key)
-                self.default_model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
-            except Exception as e:
-                print(f"Warning: Failed to initialize OpenAI client: {e}")
-                self.client = None
-                self.default_model = "gpt-4o-mini"
-        else:
-            print("Warning: OPENAI_API_KEY not found")
+        # Do NOT create the OpenAI client at import time to avoid startup crashes
+        self.api_key = os.getenv("OPENAI_API_KEY")
+        self.default_model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+        self.client: Optional[OpenAI] = None
+
+    def _ensure_client(self) -> bool:
+        """Lazily initialize the OpenAI client. Returns True if ready, else False."""
+        if self.client is not None:
+            return True
+        if not self.api_key:
+            # Avoid crashing; caller can handle missing client
+            print("Warning: OPENAI_API_KEY not found; AI features disabled")
+            return False
+        try:
+            self.client = OpenAI(api_key=self.api_key)
+            return True
+        except Exception as e:
+            print(f"Warning: Failed to initialize OpenAI client: {e}")
             self.client = None
-            self.default_model = "gpt-4o-mini"
+            return False
     
     def call_gpt(self, prompt: str, model: Optional[str] = None, temperature: float = 0.7) -> Dict[str, Any]:
         """Call OpenAI GPT model with a given prompt and return JSON output if possible."""
-        if not self.client:
+        if not self._ensure_client():
             return {"error": "OpenAI client not initialized"}
             
         try:
@@ -46,7 +53,7 @@ class GPTService:
     
     def call_gpt_with_system(self, system_prompt: str, user_prompt: str, model: Optional[str] = None, temperature: float = 0.7) -> Dict[str, Any]:
         """Call OpenAI GPT with system and user prompts."""
-        if not self.client:
+        if not self._ensure_client():
             return {"error": "OpenAI client not initialized"}
             
         try:

@@ -6,8 +6,6 @@ from datetime import datetime
 from enum import Enum
 import os
 from dotenv import load_dotenv
-from openai import OpenAI
-from ..utils.prompt_utils import fill_prompt
 from .gpt_service import gpt_service
 
 # Configure logging
@@ -16,11 +14,6 @@ logger = logging.getLogger(__name__)
 
 # Load environment variables
 load_dotenv()
-
-# Configure OpenAI API client
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
-client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 
 class QuestionType(str, Enum):
     BEHAVIORAL = "behavioral"
@@ -265,25 +258,28 @@ class InterviewSimulator:
             Dictionary containing analysis and feedback
         """
         try:
-            # Use OpenAI to analyze the response
+            # Use OpenAI (via gpt_service) to analyze the response
             prompt = self._create_analysis_prompt(question, user_response)
 
-            if client is None:
-                raise RuntimeError("OPENAI_API_KEY is not set. Please configure it in your environment.")
-
-            response = client.chat.completions.create(
-                model=OPENAI_MODEL,
-                messages=[
-                    {"role": "system", "content": "You are an experienced technical interviewer providing detailed feedback on interview responses."},
-                    {"role": "user", "content": prompt}
-                ],
+            result = gpt_service.call_gpt_with_system(
+                system_prompt="You are an experienced technical interviewer providing detailed feedback on interview responses.",
+                user_prompt=prompt,
                 temperature=0.7,
-                max_tokens=1000
             )
 
-            # Parse the response
-            feedback_text = response.choices[0].message.content
-            feedback_data = self._parse_feedback(feedback_text)
+            # Handle errors or raw outputs gracefully
+            if isinstance(result, dict) and "error" in result:
+                raise RuntimeError(result.get("error", "Unknown AI service error"))
+
+            if isinstance(result, dict) and "raw_output" in result:
+                feedback_text = result["raw_output"]
+                feedback_data = self._parse_feedback(feedback_text)
+            elif isinstance(result, dict):
+                # If the model returned already-parsed JSON
+                feedback_data = result
+            else:
+                # Fallback to string parsing
+                feedback_data = self._parse_feedback(str(result))
             
             # Add metadata
             feedback_data.update({
