@@ -27,7 +27,7 @@ async def root():
 @app.get("/health")
 async def health():
     """Health check endpoint for Render/monitoring."""
-    return {"status": "ok"}
+    return {"status": "ok", "version": "1.0.1"}
 
 # Import and include routers
 from app.routers import resume, interview, auth
