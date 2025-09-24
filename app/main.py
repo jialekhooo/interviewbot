@@ -29,12 +29,15 @@ async def health():
     """Health check endpoint for Render/monitoring."""
     return {"status": "ok", "version": "1.0.1"}
 
-# Import and include routers
-from app.routers import resume, interview, auth
+# Import and include routers - minimal version for deployment
+from app.routers import interview
 
-app.include_router(resume.router, prefix="/api/resume", tags=["resume"])
 app.include_router(interview.router, prefix="/api/interview", tags=["interview"])
-app.include_router(auth.router, prefix="/api/auth", tags=["authentication"])
+
+# Temporarily disabled to fix deployment issues
+# from app.routers import resume, auth
+# app.include_router(resume.router, prefix="/api/resume", tags=["resume"])
+# app.include_router(auth.router, prefix="/api/auth", tags=["authentication"])
 
 # Temporarily disabled to fix deployment issues
 # from app.routers import guidance, mock, improvement, bubble_integration
