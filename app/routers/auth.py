@@ -6,7 +6,10 @@ from datetime import datetime, timedelta
 from typing import Optional
 import os
 from dotenv import load_dotenv
-from ..schemas.auth import Token, TokenData, User, UserInDB
+from app.schemas.auth import Token, User, UserInDB
+from app.database import get_db
+from app.models.auth import DBUser
+from sqlalchemy.orm import Session
 
 router = APIRouter()
 
@@ -18,39 +21,37 @@ SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-here")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
-# Mock database (replace with real database in production)
-fake_users_db = {
-    "testuser": {
-        "username": "testuser",
-        "full_name": "Test User",
-        "email": "test@example.com",
-        "hashed_password": f"{CryptContext(schemes=['bcrypt'], deprecated='auto').hash('test123')}",  # password: test123
-        "disabled": False,
-    }
-}
-
+# Initialize password hashing context
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# OAuth2 password bearer token scheme
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/token")
 
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
 
+# Utility function to hash passwords
 def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
 
-def get_user(db, username: str):
-    if username in db:
-        user_dict = db[username]
-        return UserInDB(**user_dict)
 
-def authenticate_user(fake_db, username: str, password: str):
-    user = get_user(fake_db, username)
-    if not user:
-        return False
-    if not verify_password(password, user.hashed_password):
-        return False
+# Verify password
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return pwd_context.verify(plain_password, hashed_password)
+
+
+# Get user from the database
+def get_user(db: Session, username: str) -> UserInDB:
+    return db.query(DBUser).filter(DBUser.username == username).first()
+
+
+# Authenticate user by checking password
+def authenticate_user(db: Session, username: str, password: str) -> UserInDB:
+    user = get_user(db, username)
+    if not user or not verify_password(password, user.hashed_password):
+        return None
     return user
 
+
+# Create JWT access token
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
     if expires_delta:
@@ -61,61 +62,56 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-async def get_current_user(token: str = Depends(oauth2_scheme)):
+
+# Get current user from the token
+async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
         if username is None:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid authentication token",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid authentication token")
         return {"username": username}
     except JWTError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token")
 
-async def get_current_active_user(current_user: dict = Depends(get_current_user)) -> User:
-    """
-    Validate that the current user is active and return it as a User model.
-    """
-    # Wrap the DB record into UserInDB for safety
-    user_record = fake_users_db.get(current_user["username"])
+
+# Get current active user from token
+async def get_current_active_user(current_user: dict = Depends(get_current_user),
+                                  db: Session = Depends(get_db)) -> User:
+    user_record = db.query(DBUser).filter(DBUser.username == current_user["username"]).first()
     if not user_record:
         raise HTTPException(status_code=404, detail="User not found")
-
-    user_in_db = UserInDB(**user_record)  # ✅ Use Pydantic model for validation
-
-    if user_in_db.disabled:
+    if user_record.disabled:
         raise HTTPException(status_code=400, detail="Inactive user")
-
-    # Return a safe public-facing User object (without hashed_password)
-    return User(**user_in_db.dict())
+    return User(username=user_record.username, full_name=user_record.full_name, email=user_record.email)
 
 
+# Register new user
+@router.post("/register")
+def register(username: str, password: str, db: Session = Depends(get_db)):
+    existing_user = db.query(DBUser).filter(DBUser.username == username).first()
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Username already exists")
+    user = DBUser(username=username, hashed_password=get_password_hash(password))
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return {"message": "User registered successfully"}
+
+
+# Login and get JWT access token
 @router.post("/token", response_model=Token)
-async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
-    user = authenticate_user(fake_users_db, form_data.username, form_data.password)
+async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    user = authenticate_user(db, form_data.username, form_data.password)
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect username or password")
+
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": user.username}, expires_delta=access_token_expires
-    )
+    access_token = create_access_token(data={"sub": user.username}, expires_delta=access_token_expires)
     return {"access_token": access_token, "token_type": "bearer"}
 
+
+# Get current user profile
 @router.get("/users/me/", response_model=User)
 async def read_users_me(current_user: User = Depends(get_current_active_user)):
     return current_user
-
-@router.get("/users/me/items/")
-async def read_own_items(current_user: User = Depends(get_current_active_user)):
-    return [{"item_id": "Foo", "owner": current_user.username}]

@@ -1,12 +1,18 @@
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException, Depends
 from fastapi import Request
-from typing import List, Dict, Optional
+from typing import List, Dict
 import json
 import uuid
 from datetime import datetime
-from ..services.interview_simulator import InterviewSimulator
-from ..schemas.interview import InterviewSession, InterviewFeedback, InterviewQuestion
-from pydantic import BaseModel, Field
+from app.services.interview_simulator import InterviewSimulator
+from app.schemas.interview import InterviewSession, InterviewQuestion, UserResponse
+from app.models.interview import DBInterviewSession, DBInterviewQuestion, DBUserResponse, DBInterviewFeedback
+from app.schemas.auth import User
+from app.routers.auth import get_current_active_user
+from app.database import get_db
+from sqlalchemy.orm import Session
+from app.services.gpt_service import gpt_service
+from fastapi import status
 router = APIRouter()
 
 # Store active interview sessions
@@ -17,151 +23,208 @@ async def interview_health():
     """Health check for interview service"""
     return {"status": "ok", "service": "interview", "active_sessions": len(active_sessions)}
 
+@router.get("/past_interviews", response_model=List[InterviewSession])
+async def get_past_interviews(current_user: User = Depends(get_current_active_user), db: Session = Depends(get_db)):
+    """
+    Retrieve all past interview sessions for a specific user.
+    Fetch only the required columns and exclude unnecessary data.
+    """
+    # Select only the required columns from the InterviewSession table
+    past_interviews = db.query(
+        DBInterviewSession.session_id,
+        DBInterviewSession.user_id,
+        DBInterviewSession.position,
+        DBInterviewSession.difficulty,
+        DBInterviewSession.question_types,
+        DBInterviewSession.start_time,
+        DBInterviewSession.end_time,
+        DBInterviewSession.status
+    ).filter(
+        DBInterviewSession.user_id == current_user.username
+    ).all()
+
+    if not past_interviews:
+        raise HTTPException(status_code=404, detail="No past interviews found for this user")
+
+    # Return the result directly as the response model will handle serialization
+    return past_interviews
+
+@router.get("/past_interview/{session_id}")
+async def get_past_interview(session_id: str, current_user: User = Depends(get_current_active_user), db: Session = Depends(get_db)):
+    """
+    Retrieve all past interview sessions for a specific user.
+    Fetch only the required columns and exclude unnecessary data.
+    """
+    # Select only the required columns from the InterviewSession table
+    past_interview = db.query(DBInterviewSession.session_id).filter(DBInterviewSession.user_id == current_user.username).first()
+    # Fetch related data for questions, responses, and feedback
+    questions = db.query(DBInterviewQuestion).filter(DBInterviewQuestion.session_id == session_id).all()
+    responses = db.query(DBUserResponse).filter(DBUserResponse.session_id == session_id).all()
+    feedback = db.query(DBInterviewFeedback).filter(DBInterviewFeedback.session_id == session_id).all()
+
+    # Create the InterviewSession response object
+    return{
+        "session_id":past_interview.session_id,
+        "questions":questions,
+        "responses":responses,
+        "feedback":feedback
+    }
+
+from fastapi import status
+
 @router.post("/start")
-async def start_interview(request: Request):
-    """
-    Start a new interview session
-    """
-    # Parse JSON body with defaults
-    body: Dict = {}
+async def start_interview(
+    payload: InterviewQuestion,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
     try:
-        body = await request.json()
-    except Exception:
-        # If JSON parsing fails, try form data
-        try:
-            form = await request.form()
-            body = dict(form)
-            # Handle repeated fields like question_types[]
-            if "question_types[]" in form:
-                body["question_types"] = form.getlist("question_types[]")
-        except Exception:
-            # If both fail, use empty dict (will use defaults below)
-            body = {}
+        position = payload.position
+        difficulty = payload.difficulty
+        q_types = payload.question_types or ["behavioral", "technical"]
+        duration = payload.duration or 30
 
-    position = body.get("position", "Software Engineer")
-    difficulty = body.get("difficulty", "medium")
-    q_types = body.get("question_types", ["behavioral", "technical"])
-    # Normalize question_types to list[str]
-    if isinstance(q_types, str):
-        q_types = [s.strip() for s in q_types.split(",") if s.strip()]
-    elif not isinstance(q_types, list):
-        # Try to coerce to list if a single value came through
-        q_types = [str(q_types)] if q_types is not None else ["behavioral", "technical"]
-    duration = body.get("duration", 30)
+        session_id = str(uuid.uuid4())
 
-    session_id = str(uuid.uuid4())
-    # Use a lightweight dict for session storage to avoid schema strictness here
-    session = {
-        "session_id": session_id,
-        "position": position,
-        "difficulty": difficulty,
-        "question_types": q_types,
-        "duration": duration,
-        "start_time": datetime.utcnow(),
-        "status": "in_progress",
-        "questions": [],
-        "feedback": []
-    }
-    
-    # Initialize the interview simulator
-    simulator = InterviewSimulator(
-        position=position,
-        difficulty=difficulty,
-        question_types=q_types,
-    )
-    
-    # Generate first question
-    first_question = simulator.generate_question()
-    session["questions"].append(first_question)
-    
-    # Store the session
-    active_sessions[session_id] = session
-    
-    return {
-        "session_id": session_id,
-        "question": first_question,
-        "status": session["status"]
-    }
+        session = DBInterviewSession(
+            session_id=session_id,
+            user_id=current_user.username,
+            position=position,
+            difficulty=difficulty,
+            question_types=q_types,
+            start_time=datetime.utcnow(),
+            status="in_progress",
+        )
 
-class AnswerPayload(BaseModel):
-    session_id: str = Field(..., example="uuid")
-    response: str = Field(..., example="<your answer text>")
-    time_taken: int = Field(..., example=60)
-    confidence_level: float = Field(..., example=0.8)
+        db.add(session)
+        db.commit()
+        db.refresh(session)
 
-# --- Active sessions dict (mock) ---
-active_sessions = {}
+        # Call GPT
+        system_prompt = f"You are a virtual interviewer for a {position} role."
+        user_prompt = f"Start the interview by asking a {difficulty} level {q_types[0]} question."
 
-# --- Mock InterviewSimulator class ---
-class InterviewSimulator:
-    def __init__(self, position, difficulty, question_types):
-        self.position = position
-        self.difficulty = difficulty
-        self.question_types = question_types
+        result = gpt_service.call_gpt_with_system(system_prompt, user_prompt)
 
-    def analyze_response(self, question, user_response, time_taken, confidence_level):
-        return {"analysis": f"Feedback for {user_response}"}
+        if "error" in result:
+            raise HTTPException(status_code=500, detail=f"OpenAI Error: {result['error']}")
 
-    def generate_question(self):
-        return "Next interview question?"
+        question_text = result.get("raw_output") or result.get("question") or "Tell me about yourself."
 
-    def generate_overall_feedback(self):
-        return {"summary": "Overall performance feedback."}
+        db_question = DBInterviewQuestion(session_id=session_id, question_id= str(uuid.uuid4()), question_text=question_text)
+        db.add(db_question)
+        db.commit()
+
+        return {
+            "session_id": session.session_id,
+            "question": question_text,
+            "status": session.status,
+        }
+
+    except Exception as e:
+        print("🔥 Interview start failed:", str(e))  # This helps during dev
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to start mock interview: {str(e)}"
+        )
+
 
 @router.post("/answer")
-async def submit_answer(payload: AnswerPayload):
-    """
-    Submit an answer to the current question and receive AI feedback.
-    Returns feedback and the next question if the interview continues.
-    """
-    session_id = payload.session_id
-    if not session_id or session_id not in active_sessions:
-        raise HTTPException(status_code=404, detail="Session not found")
+async def submit_answer(
+        payload: UserResponse,
+        db: Session = Depends(get_db),
+        current_user: User = Depends(get_current_active_user)
+):
+    # 1. Fetch the question
+    question = db.query(DBInterviewQuestion).filter(DBInterviewQuestion.question_id == payload.question_id).first()
+    if not question:
+        raise HTTPException(status_code=404, detail="Question not found.")
 
-    session = active_sessions[session_id]
-    if not session.get("questions"):
-        raise HTTPException(status_code=400, detail="No question found in session")
+    # 2. Fetch the session
+    session = db.query(DBInterviewSession).filter(DBInterviewSession.session_id == question.session_id).first()
+    if not session or session.status != "in_progress":
+        raise HTTPException(status_code=400, detail="Interview session not active.")
 
-    # Recreate simulator
-    simulator = InterviewSimulator(
-        position=session["position"],
-        difficulty=session["difficulty"],
-        question_types=session["question_types"],
+    # 3. Save the user's response
+    db_response = DBUserResponse(
+        session_id=session.session_id,
+        question_id=payload.question_id,
+        response_text=payload.response_text,
     )
+    db.add(db_response)
+    db.commit()
+    db.refresh(db_response)
 
-    last_question = session["questions"][-1]
-    feedback = simulator.analyze_response(
-        question=last_question,
-        user_response=payload.response,
-        time_taken=payload.time_taken,
-        confidence_level=payload.confidence_level,
-    )
+    # 4. Build the history (all previous questions and responses)
+    previous_conversation = ""
+    previous_responses = db.query(DBUserResponse).filter(DBUserResponse.session_id == session.session_id).all()
+    for response in previous_responses:
+        question_text = db.query(DBInterviewQuestion).filter(
+            DBInterviewQuestion.question_id == response.question_id).first().question_text
+        previous_conversation += f"Question: {question_text}\nAnswer: {response.response_text}\n\n"
 
-    session["feedback"].append(feedback)
+    # Add the current question and answer to the history
+    previous_conversation += f"Question: {question.question_text}\nAnswer: {payload.response_text}\n\n"
 
-    # Generate next question or end interview
-    if len(session["questions"]) < 5:
-        next_question = simulator.generate_question()
-        session["questions"].append(next_question)
+
+    # 7. Check if we should generate a next question or end the interview
+    question_count = db.query(DBInterviewQuestion).filter(DBInterviewQuestion.session_id == session.session_id).count()
+    MAX_QUESTIONS = 5
+    print(question_count)
+    if question_count < MAX_QUESTIONS:
+        # Generate next question based on the previous conversation history
+        next_question_prompt = f"You are an interviewer. Based on the following interview history, ask the next appropriate question:\n\n{previous_conversation}\n\nAsk a {session.difficulty} level {session.question_types[0]} interview question for a {session.position} role."
+
+        next_question_text = gpt_service.call_gpt(next_question_prompt).get("raw_output",
+                                                                            "Tell me about a recent project.")
+
+        # Save next question
+        new_question = DBInterviewQuestion(
+            session_id=session.session_id,
+            question_id=str(uuid.uuid4()),
+            question_text=next_question_text
+        )
+        db.add(new_question)
+        db.commit()
+
         return {
             "type": "next_question",
-            "feedback": feedback,
-            "question": next_question,
-            "session_id": session_id,
+            "next_question": {
+                "id": new_question.question_id,
+                "text": next_question_text
+            }
         }
+
     else:
-        session["status"] = "completed"
-        session["end_time"] = datetime.utcnow()
-        overall = simulator.generate_overall_feedback()
+        # Mark interview as complete
+        session.status = "completed"
+        session.end_time = datetime.utcnow()
+        db.commit()
+
+        # 5. Generate feedback using GPT (real or fake)
+        prompt = f"You are an interviewer. Here's the conversation history so far:\n\n{previous_conversation}\n\nProvide feedback on the candidate's latest answer."
+
+        gpt_result = gpt_service.call_gpt(prompt)
+        feedback_text = gpt_result.get("raw_output") or gpt_result.get("feedback") or "Thanks for your response."
+
+        # 6. Save the feedback
+        db_feedback = DBInterviewFeedback(
+            session_id=session.session_id,
+            feedback_text=feedback_text
+        )
+        db.add(db_feedback)
+        db.commit()
+
         return {
             "type": "interview_complete",
-            "feedback": overall,
-            "session_summary": {
-                "total_questions": len(session["questions"]),
-                "duration": (session["end_time"] - session["start_time"]).total_seconds() / 60,
-            },
-            "session_id": session_id,
+            "feedback": feedback_text,
+            "summary": {
+                "questions_answered": question_count,
+                "session_id": session.session_id,
+                "end_time": session.end_time.isoformat()
+            }
         }
+
 
 @router.websocket("/ws/{session_id}")
 async def websocket_interview(websocket: WebSocket, session_id: str):
@@ -237,21 +300,18 @@ async def websocket_interview(websocket: WebSocket, session_id: str):
             del active_sessions[session_id]
 
 @router.get("/feedback/{session_id}")
-async def get_interview_feedback(session_id: str):
+async def get_interview_feedback(session_id: str, db: Session = Depends(get_db)):
     """
     Get feedback for a completed interview session
     """
-    if session_id not in active_sessions:
-        raise HTTPException(status_code=404, detail="Session not found")
-    
-    session = active_sessions[session_id]
-    if session.status != "completed":
-        raise HTTPException(status_code=400, detail="Interview not completed yet")
-    
+    session = db.query(DBInterviewSession).filter(DBInterviewSession.session_id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=400, detail="Interview session not active.")
+
+    feedback = db.query(DBInterviewFeedback).filter(DBInterviewFeedback.session_id == session_id).first()
     return {
         "session_id": session_id,
-        "feedback": session.feedback,
-        "questions": [q.dict() for q in session.questions],
+        "feedback": feedback.feedback_text,
         "start_time": session.start_time,
         "end_time": session.end_time,
         "duration": (session.end_time - session.start_time).total_seconds() / 60

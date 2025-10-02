@@ -1,9 +1,10 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException, Depends
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from typing import List, Optional
-import os
-
+from app.database import Base, engine
+from app.models.auth import DBUser
+from app.models.interview import DBInterviewSession
+from app.models.resume import DBResume
 app = FastAPI(title="Interview Chatbot API",
               description="API for the Interview Preparation Chatbot",
               version="1.0.0")
@@ -20,6 +21,8 @@ app.add_middleware(
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
+# Base.metadata.drop_all(bind=engine)  # Drops the tables
+Base.metadata.create_all(bind=engine)  # Recreates the tables
 @app.get("/")
 async def root():
     return {"message": "Welcome to the Interview Chatbot API"}
@@ -30,7 +33,7 @@ async def health():
     return {"status": "ok"}
 
 # Import and include routers
-from app.routers import resume, interview, auth, guidance, mock, improvement
+from app.routers import resume, interview, auth, guidance, mock, improvement, live_streaming
 
 app.include_router(resume.router, prefix="/api/resume", tags=["resume"])
 app.include_router(interview.router, prefix="/api/interview", tags=["interview"])
@@ -39,6 +42,7 @@ app.include_router(auth.router, prefix="/api/auth", tags=["authentication"])
 app.include_router(guidance.router, prefix="/api/guidance", tags=["guidance"])
 app.include_router(mock.router, prefix="/api/mock", tags=["mock_interview"])
 app.include_router(improvement.router, prefix="/api/improvement", tags=["resume_improvement"])
+app.include_router(live_streaming.router, prefix="/api/live_streaming", tags=["live_streaming"])
 
 if __name__ == "__main__":
     import uvicorn
