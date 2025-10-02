@@ -5,7 +5,7 @@ import json
 import uuid
 from datetime import datetime
 from app.services.interview_simulator import InterviewSimulator
-from app.schemas.interview import InterviewSession, InterviewQuestion, UserResponse
+from app.schemas.interview import InterviewSession, InterviewQuestion, UserResponse, StartInterviewSession
 from app.models.interview import DBInterviewSession, DBInterviewQuestion, DBUserResponse, DBInterviewFeedback
 from app.schemas.auth import User
 from app.routers.auth import get_current_active_user
@@ -74,15 +74,17 @@ from fastapi import status
 
 @router.post("/start")
 async def start_interview(
-    payload: InterviewQuestion,
+    payload: StartInterviewSession,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
+    if payload.user_id != current_user.username:
+        raise HTTPException(status_code=400, detail="Invalid user ID")
+
     try:
         position = payload.position
         difficulty = payload.difficulty
         q_types = payload.question_types or ["behavioral", "technical"]
-        duration = payload.duration or 30
 
         session_id = str(uuid.uuid4())
 
@@ -92,7 +94,7 @@ async def start_interview(
             position=position,
             difficulty=difficulty,
             question_types=q_types,
-            start_time=datetime.utcnow(),
+            start_time=datetime.now(),
             status="in_progress",
         )
 
@@ -112,11 +114,17 @@ async def start_interview(
         question_text = result.get("raw_output") or result.get("question") or "Tell me about yourself."
 
         db_question = DBInterviewQuestion(session_id=session_id, question_id= str(uuid.uuid4()), question_text=question_text)
+
+        # Initialize question_ids array with first question
+        if session.question_ids is None:
+            session.question_ids = []
+        session.question_ids.append(db_question.question_id)
         db.add(db_question)
         db.commit()
 
         return {
             "session_id": session.session_id,
+            "question_id": db_question.question_id,
             "question": question_text,
             "status": session.status,
         }
@@ -170,7 +178,6 @@ async def submit_answer(
     # 7. Check if we should generate a next question or end the interview
     question_count = db.query(DBInterviewQuestion).filter(DBInterviewQuestion.session_id == session.session_id).count()
     MAX_QUESTIONS = 5
-    print(question_count)
     if question_count < MAX_QUESTIONS:
         # Generate next question based on the previous conversation history
         next_question_prompt = f"You are an interviewer. Based on the following interview history, ask the next appropriate question:\n\n{previous_conversation}\n\nAsk a {session.difficulty} level {session.question_types[0]} interview question for a {session.position} role."
@@ -184,6 +191,11 @@ async def submit_answer(
             question_id=str(uuid.uuid4()),
             question_text=next_question_text
         )
+
+        # Update session question_ids with new question
+        if session.question_ids is None:
+            session.question_ids = []
+        session.question_ids.append(new_question.question_id)
         db.add(new_question)
         db.commit()
 
@@ -300,15 +312,20 @@ async def websocket_interview(websocket: WebSocket, session_id: str):
             del active_sessions[session_id]
 
 @router.get("/feedback/{session_id}")
-async def get_interview_feedback(session_id: str, db: Session = Depends(get_db)):
+async def get_interview_feedback(session_id: str,
+                                 current_user: User = Depends(get_current_active_user),
+                                 db: Session = Depends(get_db)):
     """
     Get feedback for a completed interview session
     """
     session = db.query(DBInterviewSession).filter(DBInterviewSession.session_id == session_id).first()
-    if not session:
+    if not session and current_user.username != session_id:
         raise HTTPException(status_code=400, detail="Interview session not active.")
 
     feedback = db.query(DBInterviewFeedback).filter(DBInterviewFeedback.session_id == session_id).first()
+    if not feedback:
+        raise HTTPException(status_code=400, detail="No feedback found for this session.")
+
     return {
         "session_id": session_id,
         "feedback": feedback.feedback_text,

@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, JSON
+from sqlalchemy.ext.mutable import MutableList
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from enum import Enum as PyEnum
@@ -21,10 +22,17 @@ class DBInterviewSession(Base):
     user_id = Column(String, index=True)
     position = Column(String)
     difficulty = Column(String, default=DifficultyLevel.MEDIUM.value)
-    question_types = Column(JSON, nullable=True)
-    start_time = Column(DateTime, default=datetime.utcnow)
+    question_types = Column(MutableList.as_mutable(JSON), nullable=True, default=list)
+    question_ids = Column(MutableList.as_mutable(JSON), nullable=True, default=list)
+    start_time = Column(DateTime, default=datetime.now())
     end_time = Column(DateTime, nullable=True)
     status = Column(String, default="not_started")
+
+    @property
+    def duration(self):
+        if self.end_time:
+            return self.end_time - self.start_time
+        return None
 
     # Relationships
     questions = relationship("DBInterviewQuestion", back_populates="session", cascade="all, delete-orphan")

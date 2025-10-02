@@ -77,18 +77,18 @@ class InterviewSession(BaseModel):
     responses: List[UserResponse] = []
     feedback: Optional[List[InterviewFeedback]] = None
 
-    @property
-    def duration(self) -> Optional[float]:
-        if self.start_time and self.end_time:
-            return (self.end_time - self.start_time).total_seconds()
-        return None
-
     # Helper property to compute duration
     @property
     def duration(self):
         if self.start_time and self.end_time:
             return (self.end_time - self.start_time).total_seconds()
         return None
+
+class StartInterviewSession(BaseModel):
+    user_id: str
+    position: str
+    difficulty: DifficultyLevel = DifficultyLevel.MEDIUM
+    question_types: List[QuestionType] = [QuestionType.BEHAVIORAL, QuestionType.TECHNICAL]
 
 class InterviewResult(BaseModel):
     session_id: str
