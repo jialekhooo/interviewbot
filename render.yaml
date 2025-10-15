@@ -3,7 +3,7 @@ services:
     name: interview-chatbot-api
     env: python
     plan: free
-    buildCommand: pip install -r requirements.txt
+    buildCommand: pip install -r requirements-prod.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     autoDeploy: true
     envVars:
@@ -13,6 +13,9 @@ services:
       - key: OPENAI_MODEL
         value: gpt-4o-mini
       # OPENAI_API_KEY should be added in the Render dashboard Secrets tab
+      # To enable heavy resume parser endpoints, set this to true and switch to full requirements.txt
+      - key: ENABLE_RESUME_ROUTER
+        value: "false"
     healthCheckPath: /health
     
     # Optional: increase request/response timeouts for long AI calls
