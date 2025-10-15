@@ -3,6 +3,7 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 from enum import Enum
 
+
 class QuestionType(str, Enum):
     BEHAVIORAL = "behavioral"
     TECHNICAL = "technical"
@@ -18,15 +19,10 @@ class DifficultyLevel(str, Enum):
     EXPERT = "expert"
 
 class InterviewQuestion(BaseModel):
-    question_id: str
-    text: str
-    question_type: QuestionType
-    difficulty: DifficultyLevel
-    category: Optional[str] = None
-    time_limit: Optional[int] = Field(
-        default=180,  # Default 3 minutes
-        description="Time limit in seconds"
-    )
+    position: Optional[str] = "Software Engineer"
+    difficulty: Optional[str] = "medium"
+    question_types: Optional[List[str]] = ["behavioral", "technical"]
+    duration: Optional[int] = 30  # in minutes
     sample_answer: Optional[str] = None
     evaluation_criteria: List[str] = []
     keywords: List[str] = []
@@ -80,12 +76,19 @@ class InterviewSession(BaseModel):
     questions: List[InterviewQuestion] = []
     responses: List[UserResponse] = []
     feedback: Optional[List[InterviewFeedback]] = None
-    
+
+    # Helper property to compute duration
     @property
-    def duration(self) -> Optional[float]:
+    def duration(self):
         if self.start_time and self.end_time:
             return (self.end_time - self.start_time).total_seconds()
         return None
+
+class StartInterviewSession(BaseModel):
+    user_id: str
+    position: str
+    difficulty: DifficultyLevel = DifficultyLevel.MEDIUM
+    question_types: List[QuestionType] = [QuestionType.BEHAVIORAL, QuestionType.TECHNICAL]
 
 class InterviewResult(BaseModel):
     session_id: str

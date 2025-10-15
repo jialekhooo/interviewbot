@@ -16,8 +16,8 @@ frontend/build/
 
 # Env files (keep examples)
 .env
-.env.*
-!.env.example
+.env
+!.env
 
 # IDE/editor
 .vscode/

@@ -76,4 +76,28 @@ class GPTService:
             return {"error": f"OpenAI API call failed: {str(e)}"}
 
 # Global instance
-gpt_service = GPTService()
+# gpt_service = GPTService()
+
+
+import random
+
+class FakeGPTService:
+    def call_gpt(self, prompt: str, model: str = None, temperature: float = 0.7):
+        return {
+            "raw_output": f"Mocked GPT response to: '{prompt}'"
+        }
+
+    def call_gpt_with_system(self, system_prompt: str, user_prompt: str, model: str = None, temperature: float = 0.7):
+        questions = [
+            "Tell me about yourself.",
+            "What are your strengths and weaknesses?",
+            "Describe a challenging project you worked on.",
+            "How do you stay up to date with industry trends?",
+            "Why do you want this job?"
+        ]
+        return {
+            "raw_output": random.choice(questions)
+        }
+
+# Global instance
+gpt_service = FakeGPTService()

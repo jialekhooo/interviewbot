@@ -2,6 +2,7 @@ from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
 from datetime import datetime
 
+
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
@@ -23,12 +24,19 @@ class UserInDB(UserBase):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     last_login: Optional[datetime] = None
 
-class User(UserBase):
-    id: str
-    is_active: bool = True
-    
-    class Config:
-        orm_mode = True
+# class User(UserBase):
+#     id: str
+#     is_active: bool = True
+#
+#     class Config:
+#         orm_mode = True
+
+# Basic User info returned to clients
+class User(BaseModel):
+    username: str
+    email: Optional[EmailStr] = None
+    full_name: Optional[str] = None
+    disabled: Optional[bool] = False
 
 class UserUpdate(BaseModel):
     email: Optional[EmailStr] = None
