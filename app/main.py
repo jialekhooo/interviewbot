@@ -34,14 +34,15 @@ async def health():
     return {"status": "ok", "version": "1.0.1"}
 
 # Import and include routers (avoid importing heavy resume router by default)
-from app.routers import interview, auth, guidance, mock, improvement, live_streaming
+from app.routers import interview, auth, guidance, mock, improvement, live_streaming, resume, interview_nodb
 
-app.include_router(interview.router, prefix="/api/interview", tags=["interview"])
+# app.include_router(interview.router, prefix="/api/interview", tags=["interview"])
+app.include_router(interview_nodb.router, prefix="/api/interview", tags=["interview"])
 app.include_router(auth.router, prefix="/api/auth", tags=["authentication"])
 # app.include_router(auth.router, tags=["authentication"])
-app.include_router(guidance.router, prefix="/api/guidance", tags=["guidance"])
-app.include_router(mock.router, prefix="/api/mock", tags=["mock_interview"])
-app.include_router(improvement.router, prefix="/api/improvement", tags=["resume_improvement"])
+# app.include_router(guidance.router, prefix="/api/guidance", tags=["guidance"])
+# app.include_router(mock.router, prefix="/api/mock", tags=["mock_interview"])
+# app.include_router(improvement.router, prefix="/api/improvement", tags=["resume_improvement"])
 app.include_router(live_streaming.router, prefix="/api/live_streaming", tags=["live_streaming"])
 app.include_router(resume.router, prefix="/api/resume", tags=["resume"])
 

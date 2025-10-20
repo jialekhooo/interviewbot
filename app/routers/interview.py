@@ -75,7 +75,7 @@ from fastapi import status
 
 @router.post("/start")
 async def start_interview(
-    payload: StartInterviewSession,
+    payload: StartInterviewSession = Depends(),
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
