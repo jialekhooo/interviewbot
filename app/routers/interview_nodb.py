@@ -1,23 +1,13 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException, Depends, UploadFile, File, Form
-from fastapi import Request
 from typing import List, Dict
 import json
-import logging
-import uuid
 from datetime import datetime
 
-from app.prompts.feedback_prompt import generate_final_feedback_prompt_text
 from app.services.interview_simulator import InterviewSimulator
-from app.schemas.interview import InterviewSession, InterviewQuestion, UserResponse, StartInterviewSession, DifficultyLevel, QuestionType
-from app.models.interview import DBInterviewSession, DBInterviewQuestion, DBUserResponse, DBInterviewFeedback
-from app.schemas.auth import User
-from app.routers.auth import get_current_active_user
-from app.database import get_db
-from sqlalchemy.orm import Session
+from app.schemas.interview import InterviewSession, DifficultyLevel, QuestionType
 from app.services.gpt_service import gpt_service
 from app.prompts.interview_prompt import generate_interview_prompt_text
 from app.prompts.feedback_prompt import generate_final_feedback_prompt_text
-from fastapi import status
 
 from app.utils.file_utils import parser
 
@@ -84,12 +74,12 @@ async def submit_answer(
 
     # 4. Build the history (all previous questions and responses)
     previous_conversation = ""
-    for question, answer in zip(past_questions.split("|"),past_answers.split("|")+[answer]):
+    for question, answer in zip(past_questions.split("| ,"),past_answers.split("| ,")+[answer]):
         previous_conversation += f"Question: {question}\nAnswer: {answer}\n"
     print(previous_conversation)
 
     MAX_QUESTIONS = 5
-    if len(past_answers.split("|")) < MAX_QUESTIONS:
+    if len(past_answers.split("| ,")) +  1 < MAX_QUESTIONS:
         # Compose prompt with optional job description
         prompt_template = generate_interview_prompt_text(json.dumps(parse_resume, indent=2), job_description or "", previous_conversation
                                                          , position, difficulty, ", ".join(q_types))

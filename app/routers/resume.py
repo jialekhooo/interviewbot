@@ -1,5 +1,5 @@
 from click import prompt
-from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
+from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Form
 from typing import List
 import os
 import uuid
@@ -150,8 +150,8 @@ def get_past_analysis(
 
 @router.post("/review")
 def get_resume_review(
+    job_description: str = Form(""),
     file: UploadFile = File(...),
-    job_description: str = None,
 ):
 
     parsed_text = parser(file)
