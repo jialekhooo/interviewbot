@@ -83,9 +83,7 @@ import random
 
 class FakeGPTService:
     def call_gpt(self, prompt: str, model: str = None, temperature: float = 0.7):
-        return {
-            "raw_output": f"Mocked GPT response to: '{prompt}'"
-        }
+        return f"Mocked GPT response to: '{prompt}'"
 
     def call_gpt_with_system(self, system_prompt: str, user_prompt: str, model: str = None, temperature: float = 0.7):
         questions = [
@@ -95,6 +93,11 @@ class FakeGPTService:
             "How do you stay up to date with industry trends?",
             "Why do you want this job?"
         ]
+        print({
+            "system_prompt": system_prompt,
+            "user_prompt": user_prompt
+        })
+
         return {
             "raw_output": random.choice(questions)
         }

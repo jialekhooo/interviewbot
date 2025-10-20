@@ -10,6 +10,3 @@ You are an expert career advisor. A student uploaded the following resume text:
    - Work Experience
    - Projects
    - Skills
-
-2. Provide 3 suggestions to improve the resume for job applications, focusing on technical skills, soft skills, and action-oriented bullet points.
-

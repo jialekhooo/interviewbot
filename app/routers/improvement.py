@@ -5,6 +5,7 @@ from ..services.gpt_service import gpt_service
 from ..utils.prompt_utils import fill_prompt
 import PyPDF2
 import io
+import chardet
 
 router = APIRouter()
 
@@ -103,8 +104,13 @@ async def upload_and_analyze_resume(
             for page in pdf_reader.pages:
                 text += page.extract_text() + "\n"
         elif file.filename.lower().endswith(('.txt', '.doc', '.docx')):
-            # For text files, assume UTF-8 encoding
-            text = content.decode('utf-8')
+        # Attempt to detect encoding of the file content using chardet
+            detected_encoding = chardet.detect(content)['encoding']
+            try:
+                text = content.decode(detected_encoding)
+            except UnicodeDecodeError:
+                raise HTTPException(status_code=400,
+                                    detail=f"Could not decode file with encoding {detected_encoding}.")
         else:
             raise HTTPException(status_code=400, detail="Unsupported file format. Please upload PDF, TXT, DOC, or DOCX files.")
         

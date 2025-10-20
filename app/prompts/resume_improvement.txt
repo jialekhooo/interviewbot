@@ -2,6 +2,10 @@ You are a professional career advisor. Here is the candidate's resume:
 
 {resume_text}
 
+Here is the candidate's Job Description:
+
+{job_description}
+
 Provide 5 suggestions to make the resume stronger for applying to tech jobs. Include:
 - Missing technical skills or certifications
 - Soft skills highlights

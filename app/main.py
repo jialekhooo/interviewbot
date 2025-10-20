@@ -43,6 +43,7 @@ app.include_router(guidance.router, prefix="/api/guidance", tags=["guidance"])
 app.include_router(mock.router, prefix="/api/mock", tags=["mock_interview"])
 app.include_router(improvement.router, prefix="/api/improvement", tags=["resume_improvement"])
 app.include_router(live_streaming.router, prefix="/api/live_streaming", tags=["live_streaming"])
+app.include_router(resume.router, prefix="/api/resume", tags=["resume"])
 
 # Optionally enable resume router (requires heavy deps). Set ENABLE_RESUME_ROUTER=true to include.
 if os.getenv("ENABLE_RESUME_ROUTER", "false").lower() in ("1", "true", "yes", "on"):

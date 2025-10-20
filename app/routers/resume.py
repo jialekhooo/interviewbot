@@ -1,8 +1,12 @@
+from click import prompt
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
 from typing import List
 import os
 import uuid
 import json
+import tempfile
+from PyPDF2 import PdfReader
+from docx import Document
 from datetime import datetime
 from sqlalchemy.orm import Session
 
@@ -57,31 +61,82 @@ async def upload_resume(
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error processing resume: {str(e)}")
-@router.post("/analysis/{file_id}", response_model=ResumeAnalysisResponse)
+
+@router.post("/analyze")
 def analyze_resume(
-    file_id: str,
-    current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
+    file: UploadFile = File(...),
+    # current_user: User = Depends(get_current_active_user)
 ):
-    resume = db.query(DBResume).filter(DBResume.file_id == str(file_id)).first()
-    if not resume and resume.user_id != current_user.username:
-        raise HTTPException(status_code=404, detail="Resume not found.")
-    if not os.path.exists(resume.file_path):
-        raise HTTPException(status_code=404, detail="File not found on server.")
+    # Ensure file has valid content
+    if file.content_type not in ["application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"]:
+        raise HTTPException(status_code=400, detail="Unsupported file type. Upload a .pdf or .docx file.")
+
+    # Save uploaded file temporarily
+    try:
+        suffix = ".pdf" if file.filename.endswith(".pdf") else ".docx"
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as temp_file:
+            contents = file.file.read()
+            temp_file.write(contents)
+            temp_file_path = temp_file.name
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save uploaded file: {str(e)}")
 
     try:
-        parsed_data = parse_resume(resume.file_path)
-        resume.analysis_result = parsed_data
-        db.commit()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Parsing error: {str(e)}")
+        # Determine file type and parse accordingly
+        if suffix == ".pdf":
+            parsed_text = parse_pdf(temp_file_path)
+        elif suffix == ".docx":
+            parsed_text = parse_docx(temp_file_path)
+        else:
+            raise HTTPException(status_code=400, detail="Unsupported file type.")
 
-    return ResumeAnalysisResponse(
-        file_id=resume.file_id,
-        file_name=resume.file_name,
-        uploaded_at=resume.uploaded_at.isoformat(),
-        analysis=resume.analysis_result
-    )
+        with open("app/prompts/resume_parsing.txt", "r") as f:
+            prompt_template = f.read()
+
+        prompt_template = prompt_template.replace("resume_text", parsed_text)
+        prompt_result = gpt_service.call_gpt(prompt_template, temperature=0.3)
+
+        return {
+            "file_name": file.filename,
+            "analysis": prompt_result
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error during file processing: {str(e)}")
+
+    finally:
+        # Clean up the temporary file
+        try:
+            os.remove(temp_file_path)
+        except Exception:
+            pass  # Avoid crashing on cleanup failure
+
+
+def parse_pdf(file_path: str) -> str:
+    try:
+        text = ""
+        with open(file_path, 'rb') as f:
+            reader = PdfReader(f)
+            for page in reader.pages:
+                page_text = page.extract_text()
+                if page_text:
+                    text += page_text
+        if not text:
+            raise ValueError("No text could be extracted from the PDF.")
+        return text
+    except Exception as e:
+        raise Exception(f"PDF parsing failed: {str(e)}")
+
+
+def parse_docx(file_path: str) -> str:
+    try:
+        doc = Document(file_path)
+        text = "\n".join([para.text for para in doc.paragraphs if para.text.strip()])
+        if not text:
+            raise ValueError("No text found in the DOCX file.")
+        return text
+    except Exception as e:
+        raise Exception(f"DOCX parsing failed: {str(e)}")
 
 from typing import List
 
@@ -106,47 +161,88 @@ def get_past_analysis(
         for r in resumes
     ]
 
+# @router.post("/review")
+# def get_resume_review(
+#     file_id: str,
+#     current_user: User = Depends(get_current_active_user),
+#     job_description: str = None,
+#     db: Session = Depends(get_db)
+# ):
+#     # Fetch resume from DB
+#     db_resume = db.query(DBResume).filter(DBResume.file_id == file_id).first()
+#
+#     if current_user.username != db_resume.user_id:
+#         raise HTTPException(status_code=404, detail="Review not found.")
+#
+#     if not db_resume:
+#         raise HTTPException(status_code=404, detail="Resume not found")
+#
+#     parsed_resume = db_resume.analysis_result
+#
+#     if not parsed_resume:
+#         raise HTTPException(status_code=400, detail="No parsed resume data available")
+#
+#     # Compose prompt with optional job description
+#     with open("app/prompts/resume_improvement.txt", "r") as f:
+#         prompt_template = f.read()
+#
+#     prompt_template = prompt_template.replace("resume_text", json.dumps(parsed_resume, indent=2))
+#     prompt_template = prompt_template.replace("job_description", job_description or "")
+#     system_prompt = "You are a professional and helpful assistant specialized in resume reviews."
+#
+#     # Call GPT service (using the global instance you defined)
+#     response = gpt_service.call_gpt_with_system(system_prompt, prompt_template)
+#
+#     # Handle possible errors
+#     if "error" in response:
+#         raise HTTPException(status_code=500, detail=response["error"])
+#
+#     # Extract raw_output or fallback to string
+#     review_text = response.get("raw_output") or str(response)
+#     db_resume.review = review_text
+#     db.commit()
+#
+#     return {"review": review_text}
+
 @router.post("/review")
 def get_resume_review(
-    file_id: str,
-    current_user: User = Depends(get_current_active_user),
+    file: UploadFile = File(...),
     job_description: str = None,
-    db: Session = Depends(get_db)
 ):
-    # Fetch resume from DB
-    db_resume = db.query(DBResume).filter(DBResume.file_id == file_id).first()
+    # Ensure file has valid content
+    if file.content_type not in ["application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"]:
+        raise HTTPException(status_code=400, detail="Unsupported file type. Upload a .pdf or .docx file.")
 
-    if current_user.username != db_resume.user_id:
-        raise HTTPException(status_code=404, detail="Review not found.")
+    # Save uploaded file temporarily
+    try:
+        suffix = ".pdf" if file.filename.endswith(".pdf") else ".docx"
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as temp_file:
+            contents = file.file.read()
+            temp_file.write(contents)
+            temp_file_path = temp_file.name
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save uploaded file: {str(e)}")
 
-    if not db_resume:
-        raise HTTPException(status_code=404, detail="Resume not found")
-
-    parsed_resume = db_resume.analysis_result
-    if not parsed_resume:
-        raise HTTPException(status_code=400, detail="No parsed resume data available")
+    try:
+        # Determine file type and parse accordingly
+        if suffix == ".pdf":
+            parsed_text = parse_pdf(temp_file_path)
+        elif suffix == ".docx":
+            parsed_text = parse_docx(temp_file_path)
+        else:
+            raise HTTPException(status_code=400, detail="Unsupported file type.")
 
     # Compose prompt with optional job description
-    user_prompt = (
-        "You are a career coach assistant. Provide a detailed review of the following resume:\n\n"
-        + json.dumps(parsed_resume, indent=2)
-    )
-    if job_description:
-        user_prompt += "\n\nJob Description:\n" + job_description
-    user_prompt += "\n\nPlease give constructive feedback highlighting strengths, weaknesses, and suggestions for improvement."
+        with open("app/prompts/resume_improvement.txt", "r") as f:
+            prompt_template = f.read()
 
-    system_prompt = "You are a helpful assistant specialized in resume reviews."
+        prompt_template = prompt_template.replace("resume_text", json.dumps(parsed_text, indent=2))
+        prompt_template = prompt_template.replace("job_description", job_description or "")
 
-    # Call GPT service (using the global instance you defined)
-    response = gpt_service.call_gpt_with_system(system_prompt, user_prompt)
+        # Call GPT service (using the global instance you defined)
+        prompt_result = gpt_service.call_gpt(prompt_template, temperature=0.3)
 
-    # Handle possible errors
-    if "error" in response:
-        raise HTTPException(status_code=500, detail=response["error"])
+        return {"review": prompt_result}
 
-    # Extract raw_output or fallback to string
-    review_text = response.get("raw_output") or str(response)
-    db_resume.review = review_text
-    db.commit()
-
-    return {"review": review_text}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error during file processing: {str(e)}")
