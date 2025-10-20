@@ -1,4 +1,4 @@
-# prompt/generate_prompt.py
+# prompt/feedback_prompt.py
 
 def generate_interview_prompt_text(
     resume: str = "",

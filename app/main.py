@@ -6,7 +6,7 @@ from app.models.auth import DBUser
 from app.models.interview import DBInterviewSession
 from app.models.resume import DBResume
 from pydantic import BaseModel
-from prompt.generate_prompt import generate_interview_prompt_text
+# from prompts.generate_prompt import generate_interview_prompt_text
 from openai import OpenAI
 import os
 import json
@@ -55,38 +55,38 @@ if os.getenv("ENABLE_RESUME_ROUTER", "false").lower() in ("1", "true", "yes", "o
     from app.routers import resume
     app.include_router(resume.router, prefix="/api/resume", tags=["resume"])
 
-class QuestionRequest(BaseModel):
-    resume: str | None = None
-    job_description: str | None = None
-    past_conversations: str | None = None
-    position: str | None = None
-    difficulty: str | None = "Medium"
-    question_type: str | None = "General"
+# class QuestionRequest(BaseModel):
+#     resume: str | None = None
+#     job_description: str | None = None
+#     past_conversations: str | None = None
+#     position: str | None = None
+#     difficulty: str | None = "Medium"
+#     question_type: str | None = "General"
 
-@app.post("/questions")
-async def generate_question(req: QuestionRequest):
-    prompt_text = generate_interview_prompt_text(
-        resume=req.resume,
-        job_description=req.job_description,
-        past_conversations=req.past_conversations,
-        position=req.position,
-        difficulty=req.difficulty,
-        question_type=req.question_type
-    )
-
-    response = client.chat.completions.create(
-        model="gpt-5",
-        messages=[{"role": "user", "content": prompt_text}]
-    )
-
-    # Parse JSON output from the model
-    question_data = json.loads(response.choices[0].message.content.strip())
-    return question_data
-
-"""
-Temporarily disabled routers left commented to keep the app lightweight.
-Enable only Bubble integration endpoints for Bubble.io frontend.
-"""
+# @app.post("/questions")
+# async def generate_question(req: QuestionRequest):
+#     prompt_text = generate_interview_prompt_text(
+#         resume=req.resume,
+#         job_description=req.job_description,
+#         past_conversations=req.past_conversations,
+#         position=req.position,
+#         difficulty=req.difficulty,
+#         question_type=req.question_type
+#     )
+#
+#     response = client.chat.completions.create(
+#         model="gpt-5",
+#         messages=[{"role": "user", "content": prompt_text}]
+#     )
+#
+#     # Parse JSON output from the model
+#     question_data = json.loads(response.choices[0].message.content.strip())
+#     return question_data
+#
+# """
+# Temporarily disabled routers left commented to keep the app lightweight.
+# Enable only Bubble integration endpoints for Bubble.io frontend.
+# """
 from app.routers import bubble_integration
 app.include_router(bubble_integration.router, prefix="/api/bubble", tags=["bubble_integration"]) 
 

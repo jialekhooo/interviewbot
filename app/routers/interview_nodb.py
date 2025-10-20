@@ -5,6 +5,8 @@ import json
 import logging
 import uuid
 from datetime import datetime
+
+from app.prompts.feedback_prompt import generate_final_feedback_prompt_text
 from app.services.interview_simulator import InterviewSimulator
 from app.schemas.interview import InterviewSession, InterviewQuestion, UserResponse, StartInterviewSession, DifficultyLevel, QuestionType
 from app.models.interview import DBInterviewSession, DBInterviewQuestion, DBUserResponse, DBInterviewFeedback
@@ -14,6 +16,7 @@ from app.database import get_db
 from sqlalchemy.orm import Session
 from app.services.gpt_service import gpt_service
 from app.prompts.interview_prompt import generate_interview_prompt_text
+from app.prompts.feedback_prompt import generate_final_feedback_prompt_text
 from fastapi import status
 
 from app.utils.file_utils import parser
@@ -72,6 +75,7 @@ async def submit_answer(
         question_types: List[QuestionType] = Form(...),  # Using Form for list values
         past_questions: str = Form(...),
         past_answers: str = Form(...),
+        answer: str = Form(...),
         file: UploadFile = File(...),  # Handle the file upload
 ):
 
@@ -80,7 +84,7 @@ async def submit_answer(
 
     # 4. Build the history (all previous questions and responses)
     previous_conversation = ""
-    for question, answer in zip(past_questions.split("|"),past_answers.split("|")):
+    for question, answer in zip(past_questions.split("|"),past_answers.split("|")+[answer]):
         previous_conversation += f"Question: {question}\nAnswer: {answer}\n"
     print(previous_conversation)
 
@@ -105,6 +109,40 @@ async def submit_answer(
         }
 
 
+@router.post("/feedback")
+async def get_interview_feedback(position: str = Form(...),  # Using Form for string values from multipart form data
+        difficulty: DifficultyLevel = Form(DifficultyLevel.MEDIUM),  # Using Form for enum values
+        job_description: str = Form(""),
+        question_types: List[QuestionType] = Form(...),  # Using Form for list values
+        past_questions: str = Form(...),
+        past_answers: str = Form(...),
+        file: UploadFile = File(...),  # Handle the file upload
+):
+    """
+    Get feedback for a completed interview session
+    """
+
+    q_types = question_types or ["behavioral", "technical"]
+    parse_resume = parser(file)
+
+    previous_conversation = ""
+    for question, answer in zip(past_questions.split("|"),past_answers.split("|")):
+        previous_conversation += f"Question: {question}\nAnswer: {answer}\n"
+    print(previous_conversation)
+
+    prompt_template = generate_final_feedback_prompt_text(json.dumps(parse_resume, indent=2), job_description or "", previous_conversation
+                                                     , position, difficulty, ", ".join(q_types))
+
+    result = gpt_service.call_gpt(prompt_template, temperature=0.6)
+
+    if "error" in result:
+        raise HTTPException(status_code=500, detail=f"OpenAI Error: {result['error']}")
+
+    return {
+        "feedback": result
+    }
+
+
 @router.websocket("/ws/{session_id}")
 async def websocket_interview(websocket: WebSocket, session_id: str):
     """
@@ -113,33 +151,33 @@ async def websocket_interview(websocket: WebSocket, session_id: str):
     if session_id not in active_sessions:
         await websocket.close(code=4000)
         return
-    
+
     session = active_sessions[session_id]
     simulator = InterviewSimulator(
         position=session.position,
         difficulty=session.difficulty,
         question_types=session.question_types
     )
-    
+
     await websocket.accept()
-    
+
     try:
         while True:
             # Receive user's response to the current question
             data = await websocket.receive_text()
             user_response = json.loads(data)
-            
+
             # Analyze the response and generate feedback
             feedback = simulator.analyze_response(
                 question=session.questions[-1],
                 user_response=user_response.get("response", "")
             )
-            
+
             # Store the feedback
             if not session.feedback:
                 session.feedback = []
             session.feedback.append(feedback)
-            
+
             # Generate next question or end interview
             if len(session.questions) < 5:  # Example: 5 questions per session
                 next_question = simulator.generate_question()
@@ -153,10 +191,10 @@ async def websocket_interview(websocket: WebSocket, session_id: str):
                 # End of interview
                 session.status = "completed"
                 session.end_time = datetime.utcnow()
-                
+
                 # Generate overall feedback
                 overall_feedback = simulator.generate_overall_feedback(session)
-                
+
                 await websocket.send_json({
                     "type": "interview_complete",
                     "feedback": overall_feedback.dict(),
@@ -166,37 +204,14 @@ async def websocket_interview(websocket: WebSocket, session_id: str):
                     }
                 })
                 break
-                
+
     except WebSocketDisconnect:
         # Handle client disconnection
         if session.status == "in_progress":
             session.status = "abandoned"
             session.end_time = datetime.utcnow()
-    
+
     finally:
         # Clean up
         if session_id in active_sessions:
             del active_sessions[session_id]
-
-@router.get("/feedback/{session_id}")
-async def get_interview_feedback(session_id: str,
-                                 current_user: User = Depends(get_current_active_user),
-                                 db: Session = Depends(get_db)):
-    """
-    Get feedback for a completed interview session
-    """
-    session = db.query(DBInterviewSession).filter(DBInterviewSession.session_id == session_id).first()
-    if not session and current_user.username != session_id:
-        raise HTTPException(status_code=400, detail="Interview session not active.")
-
-    feedback = db.query(DBInterviewFeedback).filter(DBInterviewFeedback.session_id == session_id).first()
-    if not feedback:
-        raise HTTPException(status_code=400, detail="No feedback found for this session.")
-
-    return {
-        "session_id": session_id,
-        "feedback": feedback.feedback_text,
-        "start_time": session.start_time,
-        "end_time": session.end_time,
-        "duration": (session.end_time - session.start_time).total_seconds() / 60
-    }
