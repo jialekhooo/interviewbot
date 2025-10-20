@@ -64,7 +64,7 @@ async def submit_answer(
         job_description: str = Form(""),
         question_types: List[QuestionType] = Form(...),  # Using Form for list values
         past_questions: str = Form(...),
-        past_answers: str = Form(...),
+        past_answers: str = Form(""),
         answer: str = Form(...),
         file: UploadFile = File(...),  # Handle the file upload
 ):
@@ -74,12 +74,12 @@ async def submit_answer(
 
     # 4. Build the history (all previous questions and responses)
     previous_conversation = ""
-    for question, answer in zip(past_questions.split("| ,"),past_answers.split("| ,")+[answer]):
+    for question, answer in zip(past_questions.split("||,"),past_answers.split("||,")+[answer]):
         previous_conversation += f"Question: {question}\nAnswer: {answer}\n"
     print(previous_conversation)
 
     MAX_QUESTIONS = 5
-    if len(past_answers.split("| ,")) +  1 < MAX_QUESTIONS:
+    if len(past_answers.split("||,")) +  1 < MAX_QUESTIONS:
         # Compose prompt with optional job description
         prompt_template = generate_interview_prompt_text(json.dumps(parse_resume, indent=2), job_description or "", previous_conversation
                                                          , position, difficulty, ", ".join(q_types))
