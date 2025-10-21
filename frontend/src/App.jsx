@@ -4,6 +4,7 @@ import Home from "./pages/Home";
 import Resume from "./pages/Resume";
 import Interview from "./pages/Interview";
 import Chat from "./pages/Chat";
+import SpeechInterview from "./pages/SpeechInterview";
 
 export default function App() {
   return (
