@@ -18,6 +18,7 @@ export default function App() {
                 <Link to="/resume" className="text-gray-700 hover:text-blue-600 font-medium">Resume Review</Link>
                 <Link to="/interview" className="text-gray-700 hover:text-blue-600 font-medium">Interview Simulation</Link>
                 <Link to="/chat" className="text-gray-700 hover:text-blue-600 font-medium">AI Chat</Link>
+                <Link to="/speech-interview" className="text-gray-700 hover:text-blue-600 font-medium">Speech + Vision</Link>
               </div>
             </div>
           </div>
@@ -27,6 +28,7 @@ export default function App() {
           <Route path="/resume" element={<Resume />} />
           <Route path="/interview" element={<Interview />} />
           <Route path="/chat" element={<Chat />} />
+          <Route path="/speech-interview" element={<SpeechInterview />} />
         </Routes>
       </div>
     </Router>
