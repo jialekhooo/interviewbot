@@ -7,8 +7,6 @@ export default function CompleteInterviewExperience() {
   const [resumeFile, setResumeFile] = useState(null);
   const [jobDescriptionFile, setJobDescriptionFile] = useState(null);
   const [position, setPosition] = useState("Software Engineer");
-  const [difficulty, setDifficulty] = useState("medium");
-  const [questionTypes, setQuestionTypes] = useState(["behavioral", "technical"]);
 
   // Interview state
   const [isListening, setIsListening] = useState(false);
