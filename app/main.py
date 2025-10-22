@@ -38,7 +38,7 @@ async def health():
     return {"status": "ok", "version": "1.0.1"}
 
 # Import and include routers (avoid importing heavy resume router by default)
-from app.routers import interview, auth, guidance, mock, improvement, live_streaming, resume, interview_nodb
+from app.routers import interview, auth, guidance, mock, improvement, live_streaming, resume, interview_nodb, stt
 
 # app.include_router(interview.router, prefix="/api/interview", tags=["interview"])
 app.include_router(interview_nodb.router, prefix="/api/interview", tags=["interview"])
@@ -49,6 +49,8 @@ app.include_router(auth.router, prefix="/api/auth", tags=["authentication"])
 # app.include_router(improvement.router, prefix="/api/improvement", tags=["resume_improvement"])
 app.include_router(live_streaming.router, prefix="/api/live_streaming", tags=["live_streaming"])
 app.include_router(resume.router, prefix="/api/resume", tags=["resume"])
+
+app.include_router(stt.router, prefix="/api/stt", tags=["stt"])
 
 # Optionally enable resume router (requires heavy deps). Set ENABLE_RESUME_ROUTER=true to include.
 if os.getenv("ENABLE_RESUME_ROUTER", "false").lower() in ("1", "true", "yes", "on"):
