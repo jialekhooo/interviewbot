@@ -27,13 +27,13 @@ from fastapi import status
 async def start_interview(
     position: str = Form(...),
     job_description: str = Form(""),
-    difficulty: DifficultyLevel = Form(DifficultyLevel.MEDIUM),
-    question_types: List[QuestionType] = Form(...),
     file: UploadFile = File(...),
     jd_file: UploadFile = File(None),  # NEW: Optional job description file
 ):
     try:
-        q_types = question_types or ["behavioral", "technical"]
+        difficulty = DifficultyLevel.MEDIUM
+
+        q_types = ["behavioral", "technical"]
         
         # Parse resume
         parse_resume = parser(file)
@@ -78,9 +78,7 @@ async def start_interview(
 @router.post("/answer")
 async def submit_answer(
     position: str = Form(...),
-    difficulty: DifficultyLevel = Form(DifficultyLevel.MEDIUM),
     job_description: str = Form(""),
-    question_types: List[QuestionType] = Form(...),
     past_questions: str = Form(...),
     past_answers: str = Form(""),
     answer: str = Form(...),

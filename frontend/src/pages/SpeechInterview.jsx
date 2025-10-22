@@ -7,8 +7,6 @@ export default function CompleteInterviewExperience() {
   const [resumeFile, setResumeFile] = useState(null);
   const [jobDescriptionFile, setJobDescriptionFile] = useState(null);
   const [position, setPosition] = useState("Software Engineer");
-  const [difficulty, setDifficulty] = useState("medium");
-  const [questionTypes, setQuestionTypes] = useState(["behavioral", "technical"]);
 
   // Interview state
   const [isListening, setIsListening] = useState(false);
@@ -345,13 +343,6 @@ export default function CompleteInterviewExperience() {
     }
   };
 
-  const handleQuestionTypeToggle = (type) => {
-    if (questionTypes.includes(type)) {
-      setQuestionTypes(questionTypes.filter(t => t !== type));
-    } else {
-      setQuestionTypes([...questionTypes, type]);
-    }
-  };
 
   const startSession = async () => {
     if (!resumeFile) {
@@ -364,11 +355,6 @@ export default function CompleteInterviewExperience() {
       return;
     }
 
-    if (questionTypes.length === 0) {
-      setError("Please select at least one question type");
-      return;
-    }
-
     setLoading(true);
     setError('');
     
@@ -378,10 +364,8 @@ export default function CompleteInterviewExperience() {
       formData.append("jd_file", jobDescriptionFile);
       formData.append("position", position);
       formData.append("job_description", ""); // Empty since we're using file
-      formData.append("difficulty", difficulty);
-      questionTypes.forEach(type => {
-        formData.append("question_types", type);
-      });
+      
+      };
 
       const response = await fetch('https://interviewbot-rjsi.onrender.com/api/interview/start', {
         method: 'POST',
@@ -417,15 +401,11 @@ export default function CompleteInterviewExperience() {
       formData.append("file", resumeFile);
       formData.append("jd_file", jobDescriptionFile);
       formData.append('position', position);
-      formData.append('difficulty', difficulty);
       formData.append('job_description', ""); // Empty since using file
-      questionTypes.forEach(type => {
-        formData.append('question_types', type);
-      });
       formData.append('past_questions', questionHistory.join('||,'));
       formData.append('past_answers', answerHistory.join('||,'));
       formData.append('answer', currentAnswer);
-
+    }
       const response = await fetch('https://interviewbot-rjsi.onrender.com/api/interview/answer', {
         method: 'POST',
         body: formData

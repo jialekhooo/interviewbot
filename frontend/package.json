@@ -4,8 +4,8 @@
   "private": true,
   "description": "Frontend for Interview Chatbot",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
+    "dev": "set NODE_OPTIONS=--max-old-space-size=4096 && vite",
+    "build": "set NODE_OPTIONS=--max-old-space-size=4096 && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
