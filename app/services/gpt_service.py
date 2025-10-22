@@ -104,4 +104,4 @@ class FakeGPTService:
 
 # Global instance
 gpt_service = GPTService() if os.getenv("OPENAI_API_KEY") else FakeGPTService()
-gpt_service = FakeGPTService()
+
