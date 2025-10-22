@@ -6,6 +6,8 @@ from fastapi import APIRouter, UploadFile, File, HTTPException
 from fastapi import status
 from fastapi import Body
 from typing import Optional
+
+from app.routers.interview_nodb import submit_answer
 from app.stt.speech_to_text import transcribe_audio
 router = APIRouter()
 
@@ -16,41 +18,38 @@ async def stt_health():
     }
 
 @router.post("/transcribe")
+
 async def transcribe_audio_file(file: UploadFile):
     """
-    Transcribe a WAV audio file (mono, 16-bit PCM) into text using Vosk.
+    Transcribe an audio file (e.g. MP3 or WAV) using Whisper.
     Returns {"text": "..."}
     """
-    # Check if it's a WAV file
-    content_type = (file.content_type or "").lower()
-    filename = (file.filename or "").lower()
-    if not (content_type in ("audio/wav", "audio/x-wav", "audio/wave") or filename.endswith(".wav")):
-        raise HTTPException(status_code=400, detail="Only WAV files are supported (mono, 16-bit PCM)")
 
-    # Create a temp file manually (Windows-compatible)
-    fd, tmp_file_path = tempfile.mkstemp(suffix=".wav")
-    os.close(fd)  # Close the file descriptor immediately
+    # Check for allowed file types
+    filename = (file.filename or "").lower()
+    if not (filename.endswith(".mp3") or filename.endswith(".wav")):
+        raise HTTPException(status_code=400, detail="Only MP3 and WAV files are supported")
+
+    # Save uploaded file to a temp location
+    fd, temp_path = tempfile.mkstemp(suffix=os.path.splitext(filename)[1])
+    os.close(fd)
 
     try:
-        # Save the uploaded file content
-        with open(tmp_file_path, "wb") as out_file:
+        with open(temp_path, "wb") as out_file:
             shutil.copyfileobj(file.file, out_file)
 
-        # Perform transcription
-        result = transcribe_audio(tmp_file_path)
+        # Transcribe using Whisper
+        result = transcribe_audio(temp_path)
 
-        if "error" in result:
-            raise HTTPException(status_code=400, detail=result["error"])
-
+        # return submit_answer(result)
         return {"text": result, "engine": "whisper"}
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Transcription failed: {str(e)}")
 
     finally:
-        # Always clean up the temp file
-        if os.path.exists(tmp_file_path):
+        if os.path.exists(temp_path):
             try:
-                os.remove(tmp_file_path)
+                os.remove(temp_path)
             except Exception as cleanup_err:
-                print(f"Warning: could not delete temp file {tmp_file_path}: {cleanup_err}")
+                print(f"Warning: failed to delete temp file: {cleanup_err}")
