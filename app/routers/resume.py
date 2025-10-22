@@ -176,18 +176,18 @@ Structure your response in clear sections with proper headings:
 
 Format your response with proper spacing between sections."""
 
-    # Call GPT service
-    prompt_result = gpt_service.call_gpt_with_system(system_prompt, prompt_template, temperature=0.4)
-    
-    # Clean the output
-    review_text = clean_review_output(prompt_result)
-
-    return {
-        "review": review_text,
-        "formatted": True  # Flag to indicate this is pre-formatted
-    }
+    # # Call GPT service
+    # prompt_result = gpt_service.call_gpt_with_system(system_prompt, prompt_template, temperature=0.4)
+    #
+    # # Clean the output
+    # review_text = clean_review_output(prompt_result)
+    #
+    # return {
+    #     "review": review_text,
+    #     "formatted": True  # Flag to indicate this is pre-formatted
+    # }
     # Call GPT service (using the global instance you defined)
     prompt_result = gpt_service.call_gpt(prompt_template, temperature=0.3)
 
-    return {"review": prompt_result}
+    return prompt_result
 

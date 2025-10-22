@@ -31,9 +31,6 @@ async def start_interview(
     jd_file: UploadFile = File(None),  # NEW: Optional job description file
 ):
     try:
-        difficulty = DifficultyLevel.MEDIUM
-
-        q_types = ["behavioral", "technical"]
         
         # Parse resume
         parse_resume = parser(file)
@@ -53,9 +50,8 @@ async def start_interview(
             json.dumps(parse_resume, indent=2), 
             job_desc_text,  # Use parsed job description
             "",
-            position, 
-            difficulty, 
-            ", ".join(q_types)
+            position,
+            True
         )
         print(prompt_template)
         result = gpt_service.call_gpt(prompt_template, temperature=0.6)
@@ -63,9 +59,7 @@ async def start_interview(
         if "error" in result:
             raise HTTPException(status_code=500, detail=f"OpenAI Error: {result['error']}")
 
-        return {
-            "question": result
-        }
+        return result
 
     except Exception as e:
         print("🔥 Interview start failed:", str(e))
@@ -85,7 +79,6 @@ async def submit_answer(
     file: UploadFile = File(...),
     jd_file: UploadFile = File(None),  # NEW: Optional job description file
 ):
-    q_types = question_types or ["behavioral", "technical"]
     
     # Parse resume
     parse_resume = parser(file)
@@ -113,9 +106,7 @@ async def submit_answer(
             json.dumps(parse_resume, indent=2), 
             job_desc_text,  # Use parsed job description
             previous_conversation,
-            position, 
-            difficulty, 
-            ", ".join(q_types)
+            position,
         )
 
         result = gpt_service.call_gpt(prompt_template, temperature=0.6)
@@ -123,9 +114,7 @@ async def submit_answer(
         if "error" in result:
             raise HTTPException(status_code=500, detail=f"OpenAI Error: {result['error']}")
 
-        return {
-            "question": result
-        }
+        return result
 
     else:
         return {
@@ -136,9 +125,7 @@ async def submit_answer(
 @router.post("/feedback")
 async def get_interview_feedback(
     position: str = Form(...),
-    difficulty: DifficultyLevel = Form(DifficultyLevel.MEDIUM),
     job_description: str = Form(""),
-    question_types: List[QuestionType] = Form(...),
     past_questions: str = Form(...),
     past_answers: str = Form(...),
     file: UploadFile = File(...),
@@ -147,7 +134,6 @@ async def get_interview_feedback(
     """
     Get feedback for a completed interview session
     """
-    q_types = question_types or ["behavioral", "technical"]
     
     # Parse resume
     parse_resume = parser(file)
@@ -171,9 +157,7 @@ async def get_interview_feedback(
         json.dumps(parse_resume, indent=2), 
         job_desc_text,  # Use parsed job description
         previous_conversation,
-        position, 
-        difficulty, 
-        ", ".join(q_types)
+        position
     )
 
     result = gpt_service.call_gpt(prompt_template, temperature=0.6)
@@ -181,9 +165,7 @@ async def get_interview_feedback(
     if "error" in result:
         raise HTTPException(status_code=500, detail=f"OpenAI Error: {result['error']}")
 
-    return {
-        "feedback": result
-    }
+    return result
 
 
 @router.websocket("/ws/{session_id}")
