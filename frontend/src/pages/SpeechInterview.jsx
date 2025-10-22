@@ -5,7 +5,7 @@ export default function CompleteInterviewExperience() {
   // Setup phase
   const [setupComplete, setSetupComplete] = useState(false);
   const [resumeFile, setResumeFile] = useState(null);
-  const [jobDescription, setJobDescription] = useState("");
+  const [jobDescriptionFile, setJobDescriptionFile] = useState(null);
   const [position, setPosition] = useState("Software Engineer");
   const [difficulty, setDifficulty] = useState("medium");
   const [questionTypes, setQuestionTypes] = useState(["behavioral", "technical"]);
@@ -331,7 +331,17 @@ export default function CompleteInterviewExperience() {
       setResumeFile(file);
       setError("");
     } else {
-      setError("Please upload a PDF or DOCX file");
+      setError("Please upload a PDF or DOCX file for resume");
+    }
+  };
+
+  const handleJobDescriptionChange = (e) => {
+    const file = e.target.files[0];
+    if (file && (file.type === "application/pdf" || file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" || file.type === "text/plain")) {
+      setJobDescriptionFile(file);
+      setError("");
+    } else {
+      setError("Please upload a PDF, DOCX, or TXT file for job description");
     }
   };
 
@@ -349,6 +359,11 @@ export default function CompleteInterviewExperience() {
       return;
     }
 
+    if (!jobDescriptionFile) {
+      setError("Please upload the job description file to start the interview");
+      return;
+    }
+
     if (questionTypes.length === 0) {
       setError("Please select at least one question type");
       return;
@@ -360,8 +375,9 @@ export default function CompleteInterviewExperience() {
     try {
       const formData = new FormData();
       formData.append("file", resumeFile);
+      formData.append("jd_file", jobDescriptionFile);
       formData.append("position", position);
-      formData.append("job_description", jobDescription);
+      formData.append("job_description", ""); // Empty since we're using file
       formData.append("difficulty", difficulty);
       questionTypes.forEach(type => {
         formData.append("question_types", type);
@@ -399,9 +415,10 @@ export default function CompleteInterviewExperience() {
     try {
       const formData = new FormData();
       formData.append("file", resumeFile);
+      formData.append("jd_file", jobDescriptionFile);
       formData.append('position', position);
       formData.append('difficulty', difficulty);
-      formData.append('job_description', jobDescription);
+      formData.append('job_description', ""); // Empty since using file
       questionTypes.forEach(type => {
         formData.append('question_types', type);
       });
@@ -452,7 +469,7 @@ export default function CompleteInterviewExperience() {
     setTranscript('');
     setInterimTranscript('');
     setResumeFile(null);
-    setJobDescription('');
+    setJobDescriptionFile(null);
     setSpeechMetrics({
       wordsPerMinute: 0,
       fillerWords: 0,
@@ -537,68 +554,27 @@ export default function CompleteInterviewExperience() {
                 </div>
               </div>
 
-              {/* Job Description */}
+              {/* Job Description Upload */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Job Description (Optional)
+                  Upload Job Description <span className="text-red-500">*</span>
                 </label>
-                <textarea
-                  value={jobDescription}
-                  onChange={(e) => setJobDescription(e.target.value)}
-                  rows={4}
-                  placeholder="Paste the job description to get tailored questions..."
-                  className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              {/* Position */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Position
-                </label>
-                <input
-                  type="text"
-                  value={position}
-                  onChange={(e) => setPosition(e.target.value)}
-                  placeholder="e.g., Software Engineer"
-                  className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              {/* Difficulty */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Difficulty Level
-                </label>
-                <select
-                  value={difficulty}
-                  onChange={(e) => setDifficulty(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="easy">Easy</option>
-                  <option value="medium">Medium</option>
-                  <option value="hard">Hard</option>
-                </select>
-              </div>
-
-              {/* Question Types */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Question Types
-                </label>
-                <div className="space-y-2">
-                  {["behavioral", "technical", "system_design", "culture_fit"].map(type => (
-                    <label key={type} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={questionTypes.includes(type)}
-                        onChange={() => handleQuestionTypeToggle(type)}
-                        className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
-                      />
-                      <span className="capitalize font-medium">{type.replace("_", " ")}</span>
-                    </label>
-                  ))}
+                <div className="relative">
+                  <input
+                    type="file"
+                    accept=".pdf,.docx,.txt"
+                    onChange={handleJobDescriptionChange}
+                    className="w-full border-2 border-dashed border-gray-300 rounded-lg px-4 py-6 text-center cursor-pointer hover:border-blue-500 transition"
+                    id="jd-upload"
+                  />
+                  {jobDescriptionFile && (
+                    <div className="mt-2 flex items-center gap-2 text-green-600">
+                      <Upload size={16} />
+                      <span className="text-sm font-semibold">{jobDescriptionFile.name}</span>
+                    </div>
+                  )}
                 </div>
+                <p className="text-xs text-gray-500 mt-1">Upload the job description file (PDF, DOCX, or TXT)</p>
               </div>
 
               {error && (
@@ -609,7 +585,7 @@ export default function CompleteInterviewExperience() {
 
               <button
                 onClick={startSession}
-                disabled={loading || !resumeFile}
+                disabled={loading || !resumeFile || !jobDescriptionFile}
                 className="w-full px-8 py-4 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white font-semibold rounded-lg transition text-lg shadow-lg"
               >
                 {loading ? 'Starting Interview...' : 'Start Interview Session'}
