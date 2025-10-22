@@ -57,7 +57,7 @@ async def start_interview(
             difficulty, 
             ", ".join(q_types)
         )
-
+        print(prompt_template)
         result = gpt_service.call_gpt(prompt_template, temperature=0.6)
 
         if "error" in result:
@@ -165,7 +165,7 @@ async def get_interview_feedback(
         job_desc_text = job_description or ""
 
     previous_conversation = ""
-    for question, ans in zip(past_questions.split("|"), past_answers.split("|")):
+    for question, ans in zip(past_questions.split("||,"), past_answers.split("||,")):
         previous_conversation += f"Question: {question}\nAnswer: {ans}\n"
     print(previous_conversation)
 
