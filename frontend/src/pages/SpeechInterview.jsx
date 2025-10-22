@@ -1,8 +1,16 @@
-
 import React, { useState, useEffect, useRef } from 'react';
-import { Mic, MicOff, RotateCcw, Send, Video, VideoOff, Eye, Smile } from 'lucide-react';
+import { Mic, MicOff, RotateCcw, Send, Video, VideoOff, Eye, Smile, Upload } from 'lucide-react';
 
-export default function InterviewWithFullAnalysis() {
+export default function CompleteInterviewExperience() {
+  // Setup phase
+  const [setupComplete, setSetupComplete] = useState(false);
+  const [resumeFile, setResumeFile] = useState(null);
+  const [jobDescription, setJobDescription] = useState("");
+  const [position, setPosition] = useState("Software Engineer");
+  const [difficulty, setDifficulty] = useState("medium");
+  const [questionTypes, setQuestionTypes] = useState(["behavioral", "technical"]);
+
+  // Interview state
   const [isListening, setIsListening] = useState(false);
   const [isVideoOn, setIsVideoOn] = useState(false);
   const [transcript, setTranscript] = useState('');
@@ -56,7 +64,6 @@ export default function InterviewWithFullAnalysis() {
   useEffect(() => {
     const loadModels = async () => {
       try {
-        // Load TensorFlow.js from CDN
         if (!window.tf) {
           const script = document.createElement('script');
           script.src = 'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.11.0/dist/tf.min.js';
@@ -65,7 +72,6 @@ export default function InterviewWithFullAnalysis() {
           await new Promise((resolve) => { script.onload = resolve; });
         }
 
-        // Load Face Detection Model
         if (!window.blazeface) {
           const blazefaceScript = document.createElement('script');
           blazefaceScript.src = 'https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface@0.0.7/dist/blazeface.min.js';
@@ -74,7 +80,6 @@ export default function InterviewWithFullAnalysis() {
           await new Promise((resolve) => { blazefaceScript.onload = resolve; });
         }
 
-        // Initialize detector
         if (window.blazeface && !detectorRef.current) {
           detectorRef.current = await window.blazeface.load();
           console.log('Face detection model loaded');
@@ -89,6 +94,8 @@ export default function InterviewWithFullAnalysis() {
 
   // Speech Recognition Setup
   useEffect(() => {
+    if (!setupComplete || !sessionStarted) return;
+
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     
     if (!SpeechRecognition) {
@@ -149,9 +156,8 @@ export default function InterviewWithFullAnalysis() {
         recognitionRef.current.stop();
       }
     };
-  }, [isListening, transcript]);
+  }, [isListening, transcript, setupComplete, sessionStarted]);
 
-  // Video Stream Setup
   const startVideo = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ 
@@ -164,7 +170,6 @@ export default function InterviewWithFullAnalysis() {
         streamRef.current = stream;
         setIsVideoOn(true);
         
-        // Start face detection
         videoRef.current.onloadedmetadata = () => {
           detectFaces();
         };
@@ -186,7 +191,6 @@ export default function InterviewWithFullAnalysis() {
     setIsVideoOn(false);
   };
 
-  // Face Detection Loop
   const detectFaces = async () => {
     if (!videoRef.current || !detectorRef.current || !isVideoOn) return;
 
@@ -198,19 +202,16 @@ export default function InterviewWithFullAnalysis() {
       if (predictions.length > 0) {
         const face = predictions[0];
         
-        // Draw on canvas
         if (canvasRef.current) {
           const ctx = canvasRef.current.getContext('2d');
           ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
           
-          // Draw bounding box
           ctx.strokeStyle = '#00ff00';
           ctx.lineWidth = 2;
           const [x, y] = face.topLeft;
           const [x2, y2] = face.bottomRight;
           ctx.strokeRect(x, y, x2 - x, y2 - y);
           
-          // Draw landmarks (eyes, nose, mouth)
           ctx.fillStyle = '#ff0000';
           face.landmarks.forEach(landmark => {
             ctx.beginPath();
@@ -219,7 +220,6 @@ export default function InterviewWithFullAnalysis() {
           });
         }
 
-        // Calculate eye contact (simplified - checks if face is centered and looking forward)
         const videoWidth = videoRef.current.videoWidth;
         const videoHeight = videoRef.current.videoHeight;
         const [x, y] = face.topLeft;
@@ -227,7 +227,6 @@ export default function InterviewWithFullAnalysis() {
         const centerX = (x + x2) / 2;
         const centerY = (y + y2) / 2;
         
-        // Check if face is relatively centered (within middle 60% of frame)
         const isCentered = 
           centerX > videoWidth * 0.2 && centerX < videoWidth * 0.8 &&
           centerY > videoHeight * 0.2 && centerY < videoHeight * 0.8;
@@ -238,12 +237,10 @@ export default function InterviewWithFullAnalysis() {
           lookingAwayCountRef.current += 1;
         }
 
-        // Simulate emotion detection (in production, use a real emotion model)
         const emotions = ['confident', 'neutral', 'nervous', 'happy', 'focused'];
         const emotion = emotions[Math.floor(Math.random() * emotions.length)];
         const emotionConfidence = 0.6 + Math.random() * 0.3;
 
-        // Calculate engagement score
         const eyeContactRatio = totalTimeRef.current > 0 
           ? (eyeContactTimeRef.current / totalTimeRef.current) * 100 
           : 0;
@@ -328,28 +325,61 @@ export default function InterviewWithFullAnalysis() {
     }
   };
 
+  const handleResumeChange = (e) => {
+    const file = e.target.files[0];
+    if (file && (file.type === "application/pdf" || file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document")) {
+      setResumeFile(file);
+      setError("");
+    } else {
+      setError("Please upload a PDF or DOCX file");
+    }
+  };
+
+  const handleQuestionTypeToggle = (type) => {
+    if (questionTypes.includes(type)) {
+      setQuestionTypes(questionTypes.filter(t => t !== type));
+    } else {
+      setQuestionTypes([...questionTypes, type]);
+    }
+  };
+
   const startSession = async () => {
+    if (!resumeFile) {
+      setError("Please upload your resume to start the interview");
+      return;
+    }
+
+    if (questionTypes.length === 0) {
+      setError("Please select at least one question type");
+      return;
+    }
+
     setLoading(true);
     setError('');
+    
     try {
+      const formData = new FormData();
+      formData.append("file", resumeFile);
+      formData.append("position", position);
+      formData.append("job_description", jobDescription);
+      formData.append("difficulty", difficulty);
+      questionTypes.forEach(type => {
+        formData.append("question_types", type);
+      });
+
       const response = await fetch('https://interviewbot-rjsi.onrender.com/api/interview/start', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          position: 'Software Engineer',
-          difficulty: 'medium',
-          question_types: ['behavioral', 'technical'],
-          duration: 30
-        })
+        body: formData
       });
 
       if (!response.ok) throw new Error('Failed to start session');
       
       const data = await response.json();
-      const questionText = data.question?.text || data.question || 'No question received';
+      const questionText = data.question?.question || data.question?.text || data.question || 'No question received';
       setCurrentQuestion(questionText);
       setQuestionHistory([questionText]);
       setSessionStarted(true);
+      setSetupComplete(true);
     } catch (err) {
       setError(err.message || 'Failed to start interview session');
     } finally {
@@ -368,17 +398,16 @@ export default function InterviewWithFullAnalysis() {
     
     try {
       const formData = new FormData();
-      formData.append('position', 'Software Engineer');
-      formData.append('difficulty', 'medium');
-      formData.append('job_description', '');
-      formData.append('question_types', 'behavioral');
-      formData.append('question_types', 'technical');
+      formData.append("file", resumeFile);
+      formData.append('position', position);
+      formData.append('difficulty', difficulty);
+      formData.append('job_description', jobDescription);
+      questionTypes.forEach(type => {
+        formData.append('question_types', type);
+      });
       formData.append('past_questions', questionHistory.join('||,'));
       formData.append('past_answers', answerHistory.join('||,'));
       formData.append('answer', currentAnswer);
-      
-      const dummyFile = new Blob(['dummy'], { type: 'application/pdf' });
-      formData.append('file', dummyFile, 'resume.pdf');
 
       const response = await fetch('https://interviewbot-rjsi.onrender.com/api/interview/answer', {
         method: 'POST',
@@ -393,7 +422,7 @@ export default function InterviewWithFullAnalysis() {
         setCurrentQuestion('Interview Complete! Thank you for participating.');
         setSessionStarted(false);
       } else {
-        const nextQuestion = data.question?.text || data.question || 'No next question';
+        const nextQuestion = data.question?.question || data.question?.text || data.question || 'No next question';
         setCurrentQuestion(nextQuestion);
         setQuestionHistory([...questionHistory, nextQuestion]);
       }
@@ -415,12 +444,15 @@ export default function InterviewWithFullAnalysis() {
   };
 
   const resetInterview = () => {
+    setSetupComplete(false);
     setSessionStarted(false);
     setCurrentQuestion('');
     setQuestionHistory([]);
     setAnswerHistory([]);
     setTranscript('');
     setInterimTranscript('');
+    setResumeFile(null);
+    setJobDescription('');
     setSpeechMetrics({
       wordsPerMinute: 0,
       fillerWords: 0,
@@ -471,6 +503,125 @@ export default function InterviewWithFullAnalysis() {
     return emojiMap[emotion] || '😐';
   };
 
+  // Setup Form
+  if (!setupComplete) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
+        <div className="max-w-2xl mx-auto">
+          <div className="bg-white rounded-2xl shadow-2xl p-8">
+            <div className="text-center mb-8">
+              <h1 className="text-3xl font-bold text-gray-800 mb-2">AI Interview Setup</h1>
+              <p className="text-gray-600">Complete interview with speech & vision analysis</p>
+            </div>
+
+            <div className="space-y-6">
+              {/* Resume Upload */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Upload Resume <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="file"
+                    accept=".pdf,.docx"
+                    onChange={handleResumeChange}
+                    className="w-full border-2 border-dashed border-gray-300 rounded-lg px-4 py-6 text-center cursor-pointer hover:border-blue-500 transition"
+                    id="resume-upload"
+                  />
+                  {resumeFile && (
+                    <div className="mt-2 flex items-center gap-2 text-green-600">
+                      <Upload size={16} />
+                      <span className="text-sm font-semibold">{resumeFile.name}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Job Description */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Job Description (Optional)
+                </label>
+                <textarea
+                  value={jobDescription}
+                  onChange={(e) => setJobDescription(e.target.value)}
+                  rows={4}
+                  placeholder="Paste the job description to get tailored questions..."
+                  className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              {/* Position */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Position
+                </label>
+                <input
+                  type="text"
+                  value={position}
+                  onChange={(e) => setPosition(e.target.value)}
+                  placeholder="e.g., Software Engineer"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              {/* Difficulty */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Difficulty Level
+                </label>
+                <select
+                  value={difficulty}
+                  onChange={(e) => setDifficulty(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="easy">Easy</option>
+                  <option value="medium">Medium</option>
+                  <option value="hard">Hard</option>
+                </select>
+              </div>
+
+              {/* Question Types */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Question Types
+                </label>
+                <div className="space-y-2">
+                  {["behavioral", "technical", "system_design", "culture_fit"].map(type => (
+                    <label key={type} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={questionTypes.includes(type)}
+                        onChange={() => handleQuestionTypeToggle(type)}
+                        className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                      />
+                      <span className="capitalize font-medium">{type.replace("_", " ")}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {error && (
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                  {error}
+                </div>
+              )}
+
+              <button
+                onClick={startSession}
+                disabled={loading || !resumeFile}
+                className="w-full px-8 py-4 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white font-semibold rounded-lg transition text-lg shadow-lg"
+              >
+                {loading ? 'Starting Interview...' : 'Start Interview Session'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Interview Interface
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
       <div className="max-w-7xl mx-auto">
@@ -478,7 +629,7 @@ export default function InterviewWithFullAnalysis() {
           <div className="flex items-center justify-between mb-8">
             <div>
               <h1 className="text-3xl font-bold text-gray-800">AI Interview: Speech + Vision Analysis</h1>
-              <p className="text-gray-600 mt-2">Complete interview assessment with real-time feedback</p>
+              <p className="text-gray-600 mt-2">Position: {position} | Difficulty: {difficulty}</p>
             </div>
             <button
               onClick={resetInterview}
@@ -489,18 +640,7 @@ export default function InterviewWithFullAnalysis() {
             </button>
           </div>
 
-          {!sessionStarted ? (
-            <div className="text-center py-12">
-              <button
-                onClick={startSession}
-                disabled={loading}
-                className="px-8 py-4 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white font-semibold rounded-lg transition text-lg"
-              >
-                {loading ? 'Starting...' : 'Start Interview Session'}
-              </button>
-              {error && <div className="text-red-600 mt-4">{error}</div>}
-            </div>
-          ) : (
+          {sessionStarted && (
             <>
               <div className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl p-6 mb-6 text-white">
                 <div className="text-sm font-semibold mb-2">Current Question</div>
