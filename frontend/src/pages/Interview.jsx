@@ -14,6 +14,8 @@ export default function Interview() {
   const [debugInfo, setDebugInfo] = useState(null);
   const [statusMessage, setStatusMessage] = useState("");
   const [lastStartInfo, setLastStartInfo] = useState(null);
+  const [isComplete, setIsComplete] = useState(false);
+  const [summary, setSummary] = useState(null);
 
   // Helper to POST with timeout + retry to handle Render cold starts / transient errors
   const postWithRetry = async (url, body, { retries = 3, timeout = 45000 } = {}) => {
@@ -113,10 +115,12 @@ export default function Interview() {
 
       if (data.type === "next_question") {
         setFeedback(data.feedback);
-        setQuestion(data.question);
+        setQuestion(data.next_question);
         setAnswer("");
       } else if (data.type === "interview_complete") {
+        setIsComplete(true);
         setFeedback(data.feedback);
+        setSummary(data.summary);
         setQuestion(null);
       }
     } catch (err) {
@@ -149,6 +153,104 @@ export default function Interview() {
         >
           {loading ? "Starting..." : "Start Interview"}
         </button>
+      ) : isComplete ? (
+        <div className="space-y-6">
+          <div className="bg-green-50 border-l-4 border-green-500 p-4">
+            <h3 className="text-xl font-bold text-green-800 mb-2">🎉 Interview Complete!</h3>
+            <p className="text-green-700">Thank you for completing the interview. Here are your results:</p>
+          </div>
+
+          {summary && (
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <h4 className="font-semibold text-lg text-blue-900 mb-3">Interview Summary</h4>
+              <div className="space-y-2 text-gray-700">
+                <div className="flex justify-between">
+                  <span className="font-medium">Questions Answered:</span>
+                  <span className="font-bold text-blue-600">{summary.questions_answered}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-medium">Session ID:</span>
+                  <span className="text-sm text-gray-600">{summary.session_id}</span>
+                </div>
+                {summary.end_time && (
+                  <div className="flex justify-between">
+                    <span className="font-medium">Completed At:</span>
+                    <span className="text-sm text-gray-600">{new Date(summary.end_time).toLocaleString()}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {feedback && (
+            <div className="bg-white border border-gray-200 p-4 rounded-lg">
+              <h4 className="font-semibold text-lg text-gray-900 mb-3">Overall Feedback</h4>
+              <div className="text-gray-700 whitespace-pre-wrap">
+                {typeof feedback === 'string' ? feedback : (
+                  <>
+                    {feedback.summary && <div className="mb-3">{feedback.summary}</div>}
+                    {typeof feedback.detailed_feedback === "string" && (
+                      <div className="text-sm">{feedback.detailed_feedback}</div>
+                    )}
+                    {Array.isArray(feedback.detailed_feedback) && (
+                      <ul className="text-sm space-y-1">
+                        {feedback.detailed_feedback.map((fb, idx) => (
+                          <li key={idx}>• {fb.detailed_feedback || fb.feedback || JSON.stringify(fb)}</li>
+                        ))}
+                      </ul>
+                    )}
+                    {Array.isArray(feedback.strengths) && feedback.strengths.length > 0 && (
+                      <div className="mt-3">
+                        <div className="font-medium text-green-700">✓ Strengths</div>
+                        <ul className="list-disc list-inside text-sm mt-1">
+                          {feedback.strengths.map((s, i) => (
+                            <li key={i}>{s}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {Array.isArray(feedback.areas_for_improvement) && feedback.areas_for_improvement.length > 0 && (
+                      <div className="mt-3">
+                        <div className="font-medium text-orange-700">→ Areas for Improvement</div>
+                        <ul className="list-disc list-inside text-sm mt-1">
+                          {feedback.areas_for_improvement.map((s, i) => (
+                            <li key={i}>{s}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {typeof feedback.score === "number" && (
+                      <div className="mt-3 text-sm font-medium">Score: {feedback.score.toFixed(1)} / 1.0</div>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
+          <div className="flex gap-3">
+            <button
+              onClick={() => {
+                setStarted(false);
+                setIsComplete(false);
+                setQuestion(null);
+                setAnswer("");
+                setFeedback(null);
+                setSummary(null);
+                setSessionId(null);
+              }}
+              className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+            >
+              Start New Interview
+            </button>
+            <button
+              onClick={() => navigate("/")}
+              className="px-6 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors"
+            >
+              Back to Home
+            </button>
+          </div>
+        </div>
       ) : (
         <>
           {question ? (

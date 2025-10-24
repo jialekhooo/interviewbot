@@ -9,5 +9,10 @@ Score from 1-10 based on:
 - Confidence
 - Conciseness
 
-Provide a brief comment for improvement and an overall score.
-
+Return ONLY valid JSON with this exact shape:
+{
+  "score": 7.5,
+  "feedback": "Short paragraph of feedback",
+  "strengths": ["bullet", "points"],
+  "improvements": ["bullet", "points"]
+}
