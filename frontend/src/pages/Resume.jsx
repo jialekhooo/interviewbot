@@ -38,14 +38,26 @@ export default function Resume() {
     }
   };
 
-  const formatFeedback = (feedback) => {
+  const FeedbackDisplay = ({ feedback }) => {
+    console.log("Rendering feedback:", feedback, "Type:", typeof feedback);
+    
+    // If it's a string, render it directly
     if (typeof feedback === 'string') {
-      return feedback;
+      return <>{feedback}</>;
     }
-    if (feedback.raw_output) {
-      return feedback.raw_output;
+    
+    // If it's an object with raw_output
+    if (feedback && typeof feedback === 'object' && feedback.raw_output) {
+      return <>{feedback.raw_output}</>;
     }
-    return JSON.stringify(feedback, null, 2);
+    
+    // If it's an object, stringify it
+    if (feedback && typeof feedback === 'object') {
+      return <pre className="text-xs">{JSON.stringify(feedback, null, 2)}</pre>;
+    }
+    
+    // Fallback
+    return <>{String(feedback)}</>;
   };
 
   return (
@@ -103,7 +115,7 @@ export default function Resume() {
               </h3>
               <div className="prose max-w-none">
                 <div className="text-gray-700 whitespace-pre-wrap leading-relaxed">
-                  {formatFeedback(result.review)}
+                  <FeedbackDisplay feedback={result.review} />
                 </div>
               </div>
             </div>
