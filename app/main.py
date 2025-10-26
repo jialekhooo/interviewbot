@@ -6,6 +6,7 @@ from app.models.auth import DBUser
 from app.models.interview import DBInterviewSession
 from app.models.resume import DBResume
 from app.models.gpt_result import DBGPTResult
+from app.models.post import DBPost
 import os
 app = FastAPI(title="Interview Chatbot API",
               description="API for the Interview Preparation Chatbot",
@@ -35,13 +36,14 @@ async def health():
     return {"status": "ok", "version": "1.0.1"}
 
 # Import and include routers (avoid importing heavy resume router by default)
-from app.routers import interview, auth, guidance, mock, improvement
+from app.routers import interview, auth, guidance, mock, improvement, posts
 
 app.include_router(interview.router, prefix="/api/interview", tags=["interview"])
 app.include_router(auth.router, prefix="/api/auth", tags=["authentication"])
 app.include_router(guidance.router, prefix="/api/guidance", tags=["guidance"])
 app.include_router(mock.router, prefix="/api/mock", tags=["mock_interview"])
 app.include_router(improvement.router, prefix="/api/improvement", tags=["resume_improvement"])
+app.include_router(posts.router, prefix="/api", tags=["posts"])
 
 # Include live_streaming only when explicitly enabled (opencv dependency)
 if os.getenv("ENABLE_LIVE_STREAMING", "false").lower() in ("1", "true", "yes", "on"):
