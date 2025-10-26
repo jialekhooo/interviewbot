@@ -24,12 +24,15 @@ export default function Resume() {
     formData.append("file", file);
     formData.append("job_description", jobDescription);
     try {
+      console.log("Sending resume for analysis...");
       const { data } = await api.post("/api/resume/review", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
+      console.log("Received response:", data);
       setResult(data);
     } catch (err) {
-      setError(err.response?.data?.detail || "Analysis failed");
+      console.error("Error analyzing resume:", err);
+      setError(err.response?.data?.detail || err.message || "Analysis failed");
     } finally {
       setLoading(false);
     }

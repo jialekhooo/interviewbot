@@ -50,8 +50,9 @@ if os.getenv("ENABLE_LIVE_STREAMING", "false").lower() in ("1", "true", "yes", "
     from app.routers import live_streaming
     app.include_router(live_streaming.router, prefix="/api/live_streaming", tags=["live_streaming"])
 
-# Optionally enable resume router (requires heavy deps). Set ENABLE_RESUME_ROUTER=true to include.
-if os.getenv("ENABLE_RESUME_ROUTER", "false").lower() in ("1", "true", "yes", "on"):
+# Enable resume router (now enabled by default)
+# Set ENABLE_RESUME_ROUTER=false to disable if needed
+if os.getenv("ENABLE_RESUME_ROUTER", "true").lower() not in ("0", "false", "no", "off"):
     from app.routers import resume
     app.include_router(resume.router, prefix="/api/resume", tags=["resume"])
 
