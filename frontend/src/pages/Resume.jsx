@@ -16,25 +16,60 @@ export default function Resume() {
 
   const handleUpload = async (e) => {
     e.preventDefault();
-    if (!file) return;
+    console.log("Form submitted, file:", file);
+    
+    if (!file) {
+      setError("Please select a file first");
+      return;
+    }
+    
     setLoading(true);
     setError("");
     setResult(null);
+    
     const formData = new FormData();
     formData.append("file", file);
     formData.append("job_description", jobDescription);
+    
+    console.log("FormData contents:", {
+      file: file.name,
+      size: file.size,
+      type: file.type,
+      jobDescription
+    });
+    
     try {
-      console.log("Sending resume for analysis...");
-      const { data } = await api.post("/api/resume/review", formData, {
+      console.log("Sending resume for analysis to /api/resume/review...");
+      const response = await api.post("/api/resume/review", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-      console.log("Received response:", data);
-      setResult(data);
+      console.log("Full response:", response);
+      console.log("Response data:", response.data);
+      
+      if (!response.data) {
+        throw new Error("No data received from server");
+      }
+      
+      setResult(response.data);
+      console.log("Result set successfully:", response.data);
     } catch (err) {
       console.error("Error analyzing resume:", err);
-      setError(err.response?.data?.detail || err.message || "Analysis failed");
+      console.error("Error details:", {
+        message: err.message,
+        response: err.response,
+        status: err.response?.status,
+        data: err.response?.data
+      });
+      
+      const errorMessage = err.response?.data?.detail 
+        || err.response?.data?.error
+        || err.message 
+        || "Analysis failed. Please check console for details.";
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
+      console.log("Upload process completed");
     }
   };
 
@@ -107,18 +142,30 @@ export default function Resume() {
           </div>
         )}
 
-        {result && result.review && (
+        {result && (
           <div className="mt-8">
-            <div className="bg-gradient-to-r from-green-50 to-blue-50 border-l-4 border-green-500 p-6 rounded-lg">
-              <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
-                <span className="mr-2">✓</span> Resume Feedback & Suggestions
-              </h3>
-              <div className="prose max-w-none">
-                <div className="text-gray-700 whitespace-pre-wrap leading-relaxed">
-                  <FeedbackDisplay feedback={result.review} />
+            {result.review ? (
+              <div className="bg-gradient-to-r from-green-50 to-blue-50 border-l-4 border-green-500 p-6 rounded-lg">
+                <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                  <span className="mr-2">✓</span> Resume Feedback & Suggestions
+                </h3>
+                <div className="prose max-w-none">
+                  <div className="text-gray-700 whitespace-pre-wrap leading-relaxed">
+                    <FeedbackDisplay feedback={result.review} />
+                  </div>
                 </div>
               </div>
-            </div>
+            ) : (
+              <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
+                <p className="text-yellow-800">Received response but no review data found.</p>
+                <details className="mt-2">
+                  <summary className="cursor-pointer text-sm text-yellow-700">Show raw response</summary>
+                  <pre className="mt-2 text-xs bg-white p-2 rounded overflow-auto">
+                    {JSON.stringify(result, null, 2)}
+                  </pre>
+                </details>
+              </div>
+            )}
 
             {/* Additional tips section */}
             <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
