@@ -63,40 +63,32 @@ from openai import OpenAI
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-ALLOWED_MIME = {
-    "audio/mpeg", "audio/mp3", "audio/mp4", "audio/mpga", "audio/m4a",
-    "audio/wav", "audio/webm", "video/mp4", "video/webm"
-}
-
 MODEL = "gpt-4o-mini-transcribe"  # or "gpt-4o-transcribe" when available
-
 @router.post("/transcribe_api")
-async def stt(file: UploadFile = File(...), translate: bool = False):
-    if file.content_type not in ALLOWED_MIME:
-        raise HTTPException(status_code=415, detail="Unsupported media type")
-    tmpdir = tempfile.mkdtemp()
+async def stt(file: UploadFile = File(...)):
+    name = (file.filename or "").lower()
+    if not (name.endswith(".mp3") or name.endswith(".wav")):
+        raise HTTPException(status_code=400, detail="Only MP3 and WAV files are supported")
+    fd = None
+    temp_path = None
     try:
-        # Save to a temp file
-        ext = os.path.splitext(file.filename or "")[1] or ".bin"
-        path = os.path.join(tmpdir, f"{uuid.uuid4()}{ext}")
-        with open(path, "wb") as f:
-            shutil.copyfileobj(file.file, f)
+        suffix = os.path.splitext(name)[1] or ".bin"
+        fd, temp_path = tempfile.mkstemp(suffix=suffix)
+        os.close(fd)
+        with open(temp_path, "wb") as out:
+            shutil.copyfileobj(file.file, out)  # write the actual upload
+        await file.close()
 
-        # OpenAI Audio Transcriptions
-        with open(path, "rb") as fh:
-            if translate:
-                # translate+transcribe to English
-                result = client.audio.transcriptions.create(
-                    model=MODEL, file=fh, response_format="json", translate=True
-                )
-            else:
-                result = client.audio.transcriptions.create(
-                    model=MODEL, file=fh, response_format="json"
-                )
-
-        # result typically includes text and possibly segments depending on model
+        with open(temp_path, "rb") as fh:
+            result = client.audio.transcriptions.create(
+                model=MODEL, file=fh, response_format="json"
+            )
         return JSONResponse({"text": result.text})
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     finally:
-        shutil.rmtree(tmpdir, ignore_errors=True)
+        if temp_path and os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except Exception:
+                pass
