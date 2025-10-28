@@ -5,133 +5,83 @@ import api from "../lib/api";
 export default function Interview() {
   const navigate = useNavigate();
   const [started, setStarted] = useState(false);
+  const [file, setFile] = useState(null);
+  const [position, setPosition] = useState("");  // ← Empty, user must input
+  const [jobDescription, setJobDescription] = useState("");
   const [question, setQuestion] = useState(null);
   const [answer, setAnswer] = useState("");
-  const [feedback, setFeedback] = useState(null);
+  const [sessionId, setSessionId] = useState(null);
+  const [questionId, setQuestionId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [sessionId, setSessionId] = useState(null);
-  const [debugInfo, setDebugInfo] = useState(null);
-  const [statusMessage, setStatusMessage] = useState("");
-  const [lastStartInfo, setLastStartInfo] = useState(null);
   const [isComplete, setIsComplete] = useState(false);
   const [summary, setSummary] = useState(null);
 
-  // Helper to POST with timeout + retry to handle Render cold starts / transient errors
-  const postWithRetry = async (url, body, { retries = 3, timeout = 45000 } = {}) => {
-    let attempt = 0;
-    let lastErr;
-    while (attempt <= retries) {
-      try {
-        return await api.post(url, body, { timeout });
-      } catch (err) {
-        lastErr = err;
-        const status = err?.response?.status;
-        const retriable = !status || [429, 500, 502, 503, 504].includes(status);
-        if (!retriable || attempt === retries) break;
-        const backoffMs = 1000 * Math.pow(2, attempt);
-        setStatusMessage(`Server warming up (attempt ${attempt + 2}/${retries + 1})… retrying in ${backoffMs / 1000}s`);
-        await new Promise(r => setTimeout(r, backoffMs));
-        attempt += 1;
-      }
-    }
-    throw lastErr;
-  };
-
   const startInterview = async () => {
+    // Validate required fields
+    if (!file) {
+      setError("Please upload your resume first");
+      return;
+    }
+
+    if (!position.trim()) {
+      setError("Please enter the job position");
+      return;
+    }
+
     setLoading(true);
     setError("");
-    setFeedback(null);
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("position", position.trim());
+    formData.append("job_description", jobDescription);
+
     try {
-      setStatusMessage("Contacting server… this can take up to 30s on cold start");
-      // Warm up Render service: a quick GET that is expected to 405 but wakes the server
-      try {
-        await api.get("/api/interview/start", { timeout: 5000 });
-      } catch (werr) {
-        // Intentionally ignore; 405/404 is fine as long as it hits the server
-      }
-      const resp = await postWithRetry("/api/interview/start", {
-        position: "Software Engineer",
-        difficulty: "medium",
-        question_types: ["behavioral", "technical"],
-        duration: 30,
-      }, { retries: 3, timeout: 45000 });
-      const data = resp?.data;
-      console.log("/api/interview/start response", data);
-      setDebugInfo({ startResponse: data });
-      setLastStartInfo({
-        url: `${api.defaults.baseURL || ''}/api/interview/start`,
-        method: "POST",
-        response: data,
+      const { data } = await api.post("/api/interview/start", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+        timeout: 45000,
       });
-      if (!data || !data.session_id || !data.question) {
-        setError("Server responded without a question. Please try again shortly.");
-        setDebugInfo((prev) => ({ ...(prev || {}), startData: data }));
-        setStatusMessage("");
-        return;
-      }
+
       setSessionId(data.session_id);
-      setQuestion(data.question);
+      setQuestionId(data.question_id);
+      setQuestion({ text: data.question });
       setStarted(true);
-      // Redirect to AI Chat page to continue the conversation UI
-      navigate("/chat");
-      setStatusMessage("");
     } catch (err) {
-      console.error("startInterview error", err);
-      setError(
-        err.response?.data?.detail ||
-          err.response?.data?.error ||
-          err.message ||
-          "Failed to start interview"
-      );
-      setDebugInfo({ startError: err.response?.data || err.toString?.() });
-      setStatusMessage("Failed to reach server. Please try again in a few seconds.");
-      setLastStartInfo({
-        url: `${api.defaults.baseURL || ''}/api/interview/start`,
-        method: "POST",
-        error: err.response?.data || err.message || String(err),
-        status: err.response?.status,
-      });
+      setError(err.response?.data?.detail || "Failed to start interview");
     } finally {
       setLoading(false);
     }
   };
 
   const submitAnswer = async () => {
-    if (!sessionId || !question) return;
+    if (!file || !questionId || !answer) return;
+
     setLoading(true);
     setError("");
-    setFeedback(null);
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("question_id", questionId);
+    formData.append("response_text", answer);
+
     try {
-      setStatusMessage("");
-      const { data } = await postWithRetry("/api/interview/answer", {
-        session_id: sessionId,
-        response: answer,
-        time_taken: null,
-        confidence_level: null,
-      }, { retries: 2, timeout: 45000 });
-      console.log("/api/interview/answer response", data);
-      setDebugInfo((prev) => ({ ...(prev || {}), answerResponse: data }));
+      const { data } = await api.post("/api/interview/answer", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+        timeout: 45000,
+      });
 
       if (data.type === "next_question") {
-        setFeedback(data.feedback);
-        setQuestion(data.next_question);
+        setQuestionId(data.next_question.id);
+        setQuestion({ text: data.next_question.text });
         setAnswer("");
       } else if (data.type === "interview_complete") {
         setIsComplete(true);
-        setFeedback(data.feedback);
         setSummary(data.summary);
-        setQuestion(null);
+        alert("Interview complete!\n\n" + data.feedback);
       }
     } catch (err) {
-      console.error("submitAnswer error", err);
-      setError(
-        err.response?.data?.detail ||
-          err.response?.data?.error ||
-          err.message ||
-          "Submission failed"
-      );
-      setDebugInfo((prev) => ({ ...(prev || {}), answerError: err.response?.data || err.toString?.() }));
+      setError(err.response?.data?.detail || "Failed to submit answer");
     } finally {
       setLoading(false);
     }
@@ -140,214 +90,132 @@ export default function Interview() {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="max-w-2xl mx-auto bg-white shadow-lg rounded-lg p-6">
-        <h2 className="text-3xl font-bold mb-6 text-blue-600">Interview Simulation</h2>
-        <p className="text-gray-600 mb-6">Practice your interview skills with AI-powered questions and feedback.</p>
-        {statusMessage && (
-          <div className="mb-3 text-sm text-gray-600">{statusMessage}</div>
-        )}
-      {!started ? (
-        <button
-          onClick={startInterview}
-          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-          disabled={loading}
-        >
-          {loading ? "Starting..." : "Start Interview"}
-        </button>
-      ) : isComplete ? (
-        <div className="space-y-6">
-          <div className="bg-green-50 border-l-4 border-green-500 p-4">
-            <h3 className="text-xl font-bold text-green-800 mb-2">🎉 Interview Complete!</h3>
-            <p className="text-green-700">Thank you for completing the interview. Here are your results:</p>
-          </div>
+        <h2 className="text-3xl font-bold mb-6 text-blue-600">Mock Interview</h2>
+        <p className="text-gray-600 mb-6">
+          Upload your resume and provide job details to start your personalized mock interview
+        </p>
 
-          {summary && (
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <h4 className="font-semibold text-lg text-blue-900 mb-3">Interview Summary</h4>
-              <div className="space-y-2 text-gray-700">
-                <div className="flex justify-between">
-                  <span className="font-medium">Questions Answered:</span>
-                  <span className="font-bold text-blue-600">{summary.questions_answered}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="font-medium">Session ID:</span>
-                  <span className="text-sm text-gray-600">{summary.session_id}</span>
-                </div>
-                {summary.end_time && (
-                  <div className="flex justify-between">
-                    <span className="font-medium">Completed At:</span>
-                    <span className="text-sm text-gray-600">{new Date(summary.end_time).toLocaleString()}</span>
-                  </div>
-                )}
-              </div>
+        {!started ? (
+          <>
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-2">
+                Upload Resume <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="file"
+                accept=".pdf,.docx"
+                onChange={(e) => setFile(e.target.files[0])}
+                className="w-full"
+              />
+              {file && (
+                <p className="text-xs text-green-600 mt-1">
+                  ✓ {file.name}
+                </p>
+              )}
             </div>
-          )}
 
-          {feedback && (
-            <div className="bg-white border border-gray-200 p-4 rounded-lg">
-              <h4 className="font-semibold text-lg text-gray-900 mb-3">Overall Feedback</h4>
-              <div className="text-gray-700 whitespace-pre-wrap">
-                {typeof feedback === 'string' ? feedback : (
-                  <>
-                    {feedback.summary && <div className="mb-3">{feedback.summary}</div>}
-                    {typeof feedback.detailed_feedback === "string" && (
-                      <div className="text-sm">{feedback.detailed_feedback}</div>
-                    )}
-                    {Array.isArray(feedback.detailed_feedback) && (
-                      <ul className="text-sm space-y-1">
-                        {feedback.detailed_feedback.map((fb, idx) => (
-                          <li key={idx}>• {fb.detailed_feedback || fb.feedback || JSON.stringify(fb)}</li>
-                        ))}
-                      </ul>
-                    )}
-                    {Array.isArray(feedback.strengths) && feedback.strengths.length > 0 && (
-                      <div className="mt-3">
-                        <div className="font-medium text-green-700">✓ Strengths</div>
-                        <ul className="list-disc list-inside text-sm mt-1">
-                          {feedback.strengths.map((s, i) => (
-                            <li key={i}>{s}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                    {Array.isArray(feedback.areas_for_improvement) && feedback.areas_for_improvement.length > 0 && (
-                      <div className="mt-3">
-                        <div className="font-medium text-orange-700">→ Areas for Improvement</div>
-                        <ul className="list-disc list-inside text-sm mt-1">
-                          {feedback.areas_for_improvement.map((s, i) => (
-                            <li key={i}>{s}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                    {typeof feedback.score === "number" && (
-                      <div className="mt-3 text-sm font-medium">Score: {feedback.score.toFixed(1)} / 1.0</div>
-                    )}
-                  </>
-                )}
-              </div>
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-2">
+                Position <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={position}
+                onChange={(e) => setPosition(e.target.value)}
+                className="w-full p-2 border rounded"
+                placeholder="e.g., Software Engineer, Data Scientist, Product Manager"
+                required
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Enter the job position you're interviewing for
+              </p>
             </div>
-          )}
 
-          <div className="flex gap-3">
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-2">
+                Job Description (Optional)
+              </label>
+              <textarea
+                value={jobDescription}
+                onChange={(e) => setJobDescription(e.target.value)}
+                rows={4}
+                className="w-full p-2 border rounded"
+                placeholder="Paste the job description here to get more relevant questions..."
+              />
+            </div>
+
+            <button
+              onClick={startInterview}
+              className="w-full px-4 py-3 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
+              disabled={loading || !file || !position.trim()}
+            >
+              {loading ? "Starting Interview..." : "Start Mock Interview"}
+            </button>
+          </>
+        ) : isComplete ? (
+          <div className="space-y-6">
+            <div className="bg-green-50 border-l-4 border-green-500 p-4">
+              <h3 className="text-xl font-bold text-green-800 mb-2">🎉 Interview Complete!</h3>
+              <p className="text-green-700">Thank you for completing the mock interview.</p>
+            </div>
+
+            {summary && (
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <h4 className="font-semibold text-lg text-blue-900 mb-3">Summary</h4>
+                <div className="space-y-2 text-gray-700">
+                  <div>Questions Answered: {summary.questions_answered}</div>
+                  <div>Session ID: {summary.session_id}</div>
+                </div>
+              </div>
+            )}
+
             <button
               onClick={() => {
                 setStarted(false);
                 setIsComplete(false);
+                setFile(null);
+                setPosition("");
+                setJobDescription("");
                 setQuestion(null);
                 setAnswer("");
-                setFeedback(null);
                 setSummary(null);
-                setSessionId(null);
               }}
-              className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+              className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
             >
               Start New Interview
             </button>
-            <button
-              onClick={() => navigate("/")}
-              className="px-6 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors"
-            >
-              Back to Home
-            </button>
           </div>
-        </div>
-      ) : (
-        <>
-          {question ? (
-            <div className="mb-4">
-              <div className="font-semibold">Question:</div>
-              <div className="mb-2 text-gray-800">{question.text}</div>
-            </div>
-          ) : started && (
-            <div className="mb-4 text-sm text-gray-600">Waiting for question...</div>
-          )}
-          <textarea
-            value={answer}
-            onChange={e => setAnswer(e.target.value)}
-            rows={5}
-            className="w-full p-2 border rounded mb-2"
-            placeholder="Type your answer here..."
-          />
-          <button
-            onClick={submitAnswer}
-            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-            disabled={loading || !answer}
-          >
-            {loading ? "Submitting..." : "Submit Answer"}
-          </button>
-          {feedback ? (
-            <div className="mt-4 bg-gray-100 p-3 rounded">
-              <div className="font-semibold mb-1">Feedback</div>
-              {/* Overall feedback (summary + array of detailed entries) */}
-              {feedback.summary && <div className="mb-2">{feedback.summary}</div>}
+        ) : (
+          <>
+            {question && (
+              <div className="mb-4 p-4 bg-blue-50 rounded">
+                <div className="font-semibold text-blue-900 mb-2">Question:</div>
+                <div className="text-gray-800">{question.text}</div>
+              </div>
+            )}
+            <textarea
+              value={answer}
+              onChange={(e) => setAnswer(e.target.value)}
+              rows={6}
+              className="w-full p-3 border rounded mb-3"
+              placeholder="Type your answer here..."
+            />
+            <button
+              onClick={submitAnswer}
+              className="w-full px-4 py-3 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
+              disabled={loading || !answer.trim()}
+            >
+              {loading ? "Submitting..." : "Submit Answer"}
+            </button>
+          </>
+        )}
 
-              {/* Per-question feedback: show string detailed_feedback */}
-              {typeof feedback.detailed_feedback === "string" && (
-                <div className="text-sm text-gray-700 whitespace-pre-wrap">{feedback.detailed_feedback}</div>
-              )}
-
-              {/* Overall detailed list or structured array */}
-              {Array.isArray(feedback.detailed_feedback) && (
-                <ul className="text-sm text-gray-700">
-                  {feedback.detailed_feedback.map((fb, idx) => (
-                    <li key={idx} className="mb-1">• {fb.detailed_feedback || fb.feedback || JSON.stringify(fb)}</li>
-                  ))}
-                </ul>
-              )}
-
-              {/* Optional extra fields if present */}
-              {Array.isArray(feedback.strengths) && feedback.strengths.length > 0 && (
-                <div className="mt-2">
-                  <div className="font-medium">Strengths</div>
-                  <ul className="list-disc list-inside text-sm text-gray-700">
-                    {feedback.strengths.map((s, i) => (
-                      <li key={i}>{s}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {Array.isArray(feedback.areas_for_improvement) && feedback.areas_for_improvement.length > 0 && (
-                <div className="mt-2">
-                  <div className="font-medium">Areas for Improvement</div>
-                  <ul className="list-disc list-inside text-sm text-gray-700">
-                    {feedback.areas_for_improvement.map((s, i) => (
-                      <li key={i}>{s}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {typeof feedback.score === "number" && (
-                <div className="mt-2 text-sm text-gray-700">Score: {feedback.score.toFixed(1)} / 1.0</div>
-              )}
-              {feedback.error && (
-                <div className="mt-2 text-sm text-red-600">{feedback.error}</div>
-              )}
-            </div>
-          ) : null}
-          {/* Debug info (only shown if there is an error) */}
-          {error && debugInfo && (
-            <details className="mt-3 text-xs text-gray-500">
-              <summary>Debug details</summary>
-              <pre className="whitespace-pre-wrap break-words">{JSON.stringify(debugInfo, null, 2)}</pre>
-            </details>
-          )}
-          {/* Always-visible start response inspector for troubleshooting */}
-          {lastStartInfo && (
-            <details className="mt-3 text-xs text-gray-600">
-              <summary>Start request inspector</summary>
-              <div className="mb-1">URL: {lastStartInfo.url || "/api/interview/start"}</div>
-              <div className="mb-1">Method: {lastStartInfo.method}</div>
-              {lastStartInfo.status && <div className="mb-1">Status: {lastStartInfo.status}</div>}
-              <div className="mb-1 font-medium">Response/Error:</div>
-              <pre className="whitespace-pre-wrap break-words">
-                {JSON.stringify(lastStartInfo.response || lastStartInfo.error, null, 2)}
-              </pre>
-            </details>
-          )}
-        </>
-      )}
-      {error && <div className="text-red-600 mt-2">{error}</div>}
+        {error && (
+          <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded text-red-600">
+            {error}
+          </div>
+        )}
       </div>
     </div>
   );
-}
+}}
