@@ -83,9 +83,41 @@ import random
 
 class FakeGPTService:
     def call_gpt(self, prompt: str, model: str = None, temperature: float = 0.7):
-        return f"Mocked GPT response to: '{prompt}'"
+        # Check if this is a resume review request
+        if "resume" in prompt.lower() or "suggestions" in prompt.lower():
+            feedback = """Here are 5 suggestions to strengthen your resume for tech jobs:
 
-    def call_gpt_with_system(self, system_prompt: str, user_prompt: str, model: str = None, temperature: float = 0.7):
+1. **Add More Technical Skills & Certifications**
+   - Consider adding certifications like AWS, Azure, or Google Cloud
+   - Include specific frameworks and tools you've used (e.g., React, Docker, Kubernetes)
+   - List programming languages with proficiency levels
+
+2. **Highlight Soft Skills**
+   - Leadership: Mention times you led teams or mentored junior developers
+   - Communication: Emphasize cross-functional collaboration
+   - Problem-solving: Showcase how you tackled complex technical challenges
+
+3. **Use Strong Action Verbs & Quantifiable Achievements**
+   - Replace weak verbs with: "Architected", "Optimized", "Spearheaded", "Implemented"
+   - Add metrics: "Reduced load time by 40%", "Increased user engagement by 25%"
+   - Show impact: "Saved company $50K annually through automation"
+
+4. **Improve Overall Formatting**
+   - Keep it to 1-2 pages maximum
+   - Use consistent bullet points and spacing
+   - Ensure dates are aligned and formatted uniformly
+   - Use a clean, professional font (Arial, Calibri, or similar)
+
+5. **Tailor to Job Description**
+   - Mirror keywords from the job posting
+   - Prioritize relevant experience at the top
+   - Remove or minimize irrelevant positions
+   - Align your summary with the role requirements
+
+**Overall Assessment:** Your resume shows strong technical experience, but could benefit from more quantifiable achievements and better formatting consistency."""
+            return {"raw_output": feedback}
+        
+        # For interview questions
         questions = [
             "Tell me about yourself.",
             "What are your strengths and weaknesses?",
@@ -93,14 +125,10 @@ class FakeGPTService:
             "How do you stay up to date with industry trends?",
             "Why do you want this job?"
         ]
-        print({
-            "system_prompt": system_prompt,
-            "user_prompt": user_prompt
-        })
+        return {"raw_output": random.choice(questions)}
 
-        return {
-            "raw_output": random.choice(questions)
-        }
+    def call_gpt_with_system(self, system_prompt: str, user_prompt: str, model: str = None, temperature: float = 0.7):
+        return self.call_gpt(user_prompt, model, temperature)
 
 # Global instance
 gpt_service = GPTService() if os.getenv("OPENAI_API_KEY") else FakeGPTService()

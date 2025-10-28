@@ -57,7 +57,8 @@ async def start_mock_interview(request: MockInterviewRequest):
         
         result = gpt_service.call_gpt(prompt, temperature=0.8)
         
-        if "error" in result:
+        # If JSON parsing failed but we still have raw_output, continue with fallback
+        if "error" in result and "raw_output" not in result:
             raise HTTPException(status_code=500, detail=f"AI service error: {result['error']}")
         
         # Parse questions from response
@@ -132,14 +133,14 @@ async def submit_mock_answer(request: MockAnswerRequest):
         # Generate feedback using scoring template
         prompt = fill_prompt(
             "mock_interview_scoring",
-            question=question_data["question"],
-            user_answer=request.answer,
-            expected_answer=question_data.get("expected_answer", "")
+            interview_question=question_data["question"],
+            user_answer=request.answer
         )
         
         result = gpt_service.call_gpt(prompt, temperature=0.6)
         
-        if "error" in result:
+        # If JSON parsing failed but raw text exists, proceed with fallback
+        if "error" in result and "raw_output" not in result:
             raise HTTPException(status_code=500, detail=f"AI service error: {result['error']}")
         
         # Store the answer

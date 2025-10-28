@@ -10,6 +10,7 @@ from app.schemas.interview import InterviewSession, InterviewQuestion, UserRespo
 from app.models.interview import DBInterviewSession, DBInterviewQuestion, DBUserResponse, DBInterviewFeedback
 from app.schemas.auth import User
 from app.routers.auth import get_current_active_user
+from typing import Optional
 from app.database import get_db
 from sqlalchemy.orm import Session
 from app.services.gpt_service import gpt_service
@@ -73,13 +74,21 @@ async def get_past_interview(session_id: str, current_user: User = Depends(get_c
 
 from fastapi import status
 
+# Optional auth dependency
+async def get_optional_user(current_user: Optional[User] = Depends(get_current_active_user)) -> Optional[User]:
+    return current_user
+
 @router.post("/start")
 async def start_interview(
     payload: StartInterviewSession = Depends(),
-    current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: Optional[User] = None
 ):
-    if payload.user_id != current_user.username:
+    # Use provided user_id or default to 'anonymous'
+    user_id = current_user.username if current_user else payload.user_id or "anonymous"
+    
+    # Skip user validation if not authenticated
+    if current_user and payload.user_id and payload.user_id != current_user.username:
         raise HTTPException(status_code=400, detail="Invalid user ID")
 
     try:
@@ -91,7 +100,7 @@ async def start_interview(
 
         session = DBInterviewSession(
             session_id=session_id,
-            user_id=current_user.username,
+            user_id=user_id,
             position=position,
             difficulty=difficulty,
             question_types=q_types,
@@ -142,7 +151,7 @@ async def start_interview(
 async def submit_answer(
         payload: UserResponse,
         db: Session = Depends(get_db),
-        current_user: User = Depends(get_current_active_user)
+        current_user: Optional[User] = None
 ):
     # 1. Fetch the question
     question = db.query(DBInterviewQuestion).filter(DBInterviewQuestion.question_id == payload.question_id).first()

@@ -4,6 +4,9 @@ from typing import Dict, Any, List, Optional
 import uuid
 from datetime import datetime
 from app.services.gpt_service import gpt_service
+from sqlalchemy.orm import Session
+from app.database import get_db
+from app.models.gpt_result import DBGPTResult
 import os
 
 def verify_bubble_api_key(
@@ -51,11 +54,24 @@ class BubbleResumeGenerate(BaseModel):
     skills: str
     internship_experience: str = ""
     additional: str = ""
+    user_id: Optional[str] = None
 
 class BubbleGuidance(BaseModel):
     question: str
     user_answer: str
     context: str = ""
+
+class BubbleResultsList(BaseModel):
+    user_id: Optional[str] = None
+    category: Optional[str] = None
+    limit: int = 20
+    offset: int = 0
+
+class BubbleSaveResult(BaseModel):
+    category: str
+    output_text: str
+    user_id: Optional[str] = None
+    input_data: Optional[Dict[str, Any]] = None
 
 # Simple response models for Bubble.io
 class SimpleResponse(BaseModel):
@@ -165,7 +181,7 @@ async def bubble_analyze_resume(request: BubbleResumeAnalysis):
         )
 
 @router.post("/resume/generate", response_model=SimpleResponse)
-async def bubble_generate_resume(request: BubbleResumeGenerate):
+async def bubble_generate_resume(request: BubbleResumeGenerate, db: Session = Depends(get_db)):
     try:
         system_prompt = "You are an expert resume writer who creates clear, concise, and professional resumes. Output should be a well-formatted Markdown resume with clear section headers and bullet points."
         skills_list = [s.strip() for s in request.skills.split(',') if s.strip()]
@@ -205,6 +221,21 @@ async def bubble_generate_resume(request: BubbleResumeGenerate):
                 f"## Experience\n- {request.internship_experience or 'Internship details not provided.'}\n\n"
                 f"## Additional\n- {request.additional or 'N/A'}\n"
             )
+        # persist result
+        result_meta: Dict[str, Any] = {}
+        try:
+            record = DBGPTResult(
+                user_id=request.user_id or None,
+                category="resume",
+                input_data=request.dict(),
+                output_text=resume_text,
+            )
+            db.add(record)
+            db.commit()
+            db.refresh(record)
+            result_meta = {"result_id": record.id, "created_at": record.created_at.isoformat()}
+        except Exception:
+            result_meta = {}
 
         return SimpleResponse(
             success=True,
@@ -212,6 +243,8 @@ async def bubble_generate_resume(request: BubbleResumeGenerate):
             data={
                 "resume_text": resume_text,
                 "format": "markdown",
+                "result_id": result_meta.get("result_id"),
+                "created_at": result_meta.get("created_at"),
             }
         )
     except Exception as e:
@@ -220,6 +253,71 @@ async def bubble_generate_resume(request: BubbleResumeGenerate):
             message=f"Failed to generate resume: {str(e)}",
             data={}
         )
+
+@router.post("/results/list", response_model=SimpleResponse)
+async def bubble_list_results(request: BubbleResultsList, db: Session = Depends(get_db)):
+    try:
+        q = db.query(DBGPTResult)
+        if request.user_id:
+            q = q.filter(DBGPTResult.user_id == request.user_id)
+        if request.category:
+            q = q.filter(DBGPTResult.category == request.category)
+        limit = min(max(request.limit, 1), 100)
+        offset = max(request.offset, 0)
+        rows = q.order_by(DBGPTResult.created_at.desc()).offset(offset).limit(limit).all()
+        items = [
+            {
+                "id": r.id,
+                "user_id": r.user_id,
+                "category": r.category,
+                "output_text": r.output_text,
+                "input_data": r.input_data,
+                "created_at": r.created_at.isoformat(),
+            }
+            for r in rows
+        ]
+        return SimpleResponse(success=True, message="Results fetched", data={"items": items, "count": len(items)})
+    except Exception as e:
+        return SimpleResponse(success=False, message=f"Failed to list results: {str(e)}", data={})
+
+@router.get("/results/{result_id}", response_model=SimpleResponse)
+async def bubble_get_result(result_id: int, db: Session = Depends(get_db)):
+    try:
+        r = db.query(DBGPTResult).filter(DBGPTResult.id == result_id).first()
+        if not r:
+            raise HTTPException(status_code=404, detail="Result not found")
+        return SimpleResponse(
+            success=True,
+            message="Result fetched",
+            data={
+                "id": r.id,
+                "user_id": r.user_id,
+                "category": r.category,
+                "output_text": r.output_text,
+                "input_data": r.input_data,
+                "created_at": r.created_at.isoformat(),
+            },
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        return SimpleResponse(success=False, message=f"Failed to fetch result: {str(e)}", data={})
+
+@router.post("/results/save", response_model=SimpleResponse)
+async def bubble_save_result(request: BubbleSaveResult, db: Session = Depends(get_db)):
+    try:
+        row = DBGPTResult(
+            user_id=request.user_id,
+            category=request.category,
+            input_data=request.input_data,
+            output_text=request.output_text,
+        )
+        db.add(row)
+        db.commit()
+        db.refresh(row)
+        return SimpleResponse(success=True, message="Saved", data={"result_id": row.id, "created_at": row.created_at.isoformat()})
+    except Exception as e:
+        return SimpleResponse(success=False, message=f"Failed to save: {str(e)}", data={})
 
 @router.post("/guidance/improve", response_model=SimpleResponse)
 async def bubble_get_guidance(request: BubbleGuidance):
