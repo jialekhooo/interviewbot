@@ -53,3 +53,50 @@ async def transcribe_audio_file(file: UploadFile):
                 os.remove(temp_path)
             except Exception as cleanup_err:
                 print(f"Warning: failed to delete temp file: {cleanup_err}")
+
+
+# stt_app.py
+import os, uuid, shutil, tempfile
+from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi.responses import JSONResponse
+from openai import OpenAI
+
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+ALLOWED_MIME = {
+    "audio/mpeg", "audio/mp3", "audio/mp4", "audio/mpga", "audio/m4a",
+    "audio/wav", "audio/webm", "video/mp4", "video/webm"
+}
+
+MODEL = "gpt-4o-mini-transcribe"  # or "gpt-4o-transcribe" when available
+
+@router.post("/transcribe_api")
+async def stt(file: UploadFile = File(...), translate: bool = False):
+    if file.content_type not in ALLOWED_MIME:
+        raise HTTPException(status_code=415, detail="Unsupported media type")
+    tmpdir = tempfile.mkdtemp()
+    try:
+        # Save to a temp file
+        ext = os.path.splitext(file.filename or "")[1] or ".bin"
+        path = os.path.join(tmpdir, f"{uuid.uuid4()}{ext}")
+        with open(path, "wb") as f:
+            shutil.copyfileobj(file.file, f)
+
+        # OpenAI Audio Transcriptions
+        with open(path, "rb") as fh:
+            if translate:
+                # translate+transcribe to English
+                result = client.audio.transcriptions.create(
+                    model=MODEL, file=fh, response_format="json", translate=True
+                )
+            else:
+                result = client.audio.transcriptions.create(
+                    model=MODEL, file=fh, response_format="json"
+                )
+
+        # result typically includes text and possibly segments depending on model
+        return JSONResponse({"text": result.text})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)

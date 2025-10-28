@@ -6,8 +6,6 @@ import numpy as np
 import tempfile
 from collections import Counter
 
-app = FastAPI(title="Emotion Evaluation Service", version="1.0")
-
 def analyze_video_emotions(video_path: str, frame_interval: int = 30):
     """
     Analyze emotions frame-by-frame in a video.
@@ -64,4 +62,52 @@ def analyze_video_emotions(video_path: str, frame_interval: int = 30):
         "average_emotions": {k: round(v, 2) for k, v in all_scores.items()},
         "frames_analyzed": len(emotion_results)
     }
+
+# cv.py
+import os, subprocess, glob
+
+def _run_ffmpeg(cmd: list):
+    subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+def extract_scene_frames(video_path: str, outdir: str, scene_thresh: float = 0.4, scale_w: int = 640):
+    os.makedirs(outdir, exist_ok=True)
+    vf = f"select=gt(scene\\,{scene_thresh}),scale={scale_w}:-1"
+    _run_ffmpeg(["ffmpeg", "-i", video_path, "-vf", vf, "-vsync", "vfr", "-frame_pts", "1",
+                 os.path.join(outdir, "sc_%010d.jpg")])
+
+def extract_uniform_frames(video_path: str, outdir: str, fps: str = "1/4", scale_w: int = 640):
+    os.makedirs(outdir, exist_ok=True)
+    vf = f"fps={fps},scale={scale_w}:-1"
+    _run_ffmpeg(["ffmpeg", "-i", video_path, "-vf", vf, "-vsync", "vfr", "-frame_pts", "1",
+                 os.path.join(outdir, "uf_%010d.jpg")])
+
+def pick_evenly_spaced(paths, k: int):
+    if len(paths) <= k:
+        return paths
+    idxs = [round(i*(len(paths)-1)/(k-1)) for i in range(k)]
+    return [paths[i] for i in idxs]
+
+def load_bytes(paths):
+    imgs = []
+    for p in paths:
+        with open(p, "rb") as f:
+            imgs.append(f.read())
+    return imgs
+
+def get_frames_for_scoring(video_path: str, workdir: str, max_images: int = 8,
+                           scene_thresh: float = 0.4, fps: str = "1/4", scale_w: int = 640):
+    sc_dir = os.path.join(workdir, "sc")
+    extract_scene_frames(video_path, sc_dir, scene_thresh, scale_w)
+    sc_frames = sorted(glob.glob(os.path.join(sc_dir, "*.jpg")))
+    candidates = list(sc_frames)
+    if len(candidates) < 4:
+        uf_dir = os.path.join(workdir, "uf")
+        extract_uniform_frames(video_path, uf_dir, fps, scale_w)
+        candidates.extend(sorted(glob.glob(os.path.join(uf_dir, "*.jpg"))))
+    if not candidates:
+        return [], []
+    chosen_paths = pick_evenly_spaced(sorted(candidates), max_images)
+    images = load_bytes(chosen_paths)
+    basenames = [os.path.basename(p) for p in chosen_paths]
+    return images, basenames
 

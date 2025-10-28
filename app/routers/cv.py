@@ -35,3 +35,48 @@ async def analyze_video(file: UploadFile = File(...)):
 
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
+
+# endpoint.py
+import os, uuid, shutil, tempfile
+from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi.responses import JSONResponse
+
+from app.cv.emotion_recognition import get_frames_for_scoring
+from app.prompts.emotion_prompt import score_professionalism_from_images
+
+ALLOWED_MIME = {"video/mp4", "video/webm", "video/quicktime", "video/x-matroska"}
+MAX_IMAGES = int(os.getenv("MAX_IMAGES", "8"))
+SCENE_THRESH = float(os.getenv("SCENE_THRESH", "0.4"))
+UNIFORM_FPS = os.getenv("UNIFORM_FPS", "1/4")
+SCALE_W = int(os.getenv("SCALE_W", "640"))
+
+@router.post("/analyze_cv/")
+async def evaluate_cv(file: UploadFile = File(...)):
+    if file.content_type not in ALLOWED_MIME:
+        raise HTTPException(status_code=415, detail="Unsupported video type")
+    tmpdir = tempfile.mkdtemp()
+    try:
+        ext = os.path.splitext(file.filename or "")[1] or ".mp4"
+        vpath = os.path.join(tmpdir, f"{uuid.uuid4()}{ext}")
+        with open(vpath, "wb") as f:
+            shutil.copyfileobj(file.file, f)
+
+        images, frame_names = get_frames_for_scoring(
+            video_path=vpath,
+            workdir=tmpdir,
+            max_images=MAX_IMAGES,
+            scene_thresh=SCENE_THRESH,
+            fps=UNIFORM_FPS,
+            scale_w=SCALE_W,
+        )
+        if not images:
+            raise HTTPException(status_code=422, detail="No frames extracted")
+
+        score, details = score_professionalism_from_images(images)
+        return JSONResponse({"score": score, "details": details, "frames": frame_names})
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
