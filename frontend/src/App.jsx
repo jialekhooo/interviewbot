@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from "./context/AuthContext";
 import Home from "./pages/Home";
 import Resume from "./pages/Resume";
 import Interview from "./pages/Interview";
+import SpeechInterview from "./pages/SpeechInterview";
 import Chat from "./pages/Chat";
 import Posts from "./pages/Posts";
 import Login from "./pages/Login";
@@ -18,7 +19,8 @@ function Navigation() {
           <Link to="/" className="text-xl font-bold text-blue-600">Interview Chatbot</Link>
           <div className="flex items-center space-x-6">
             <Link to="/resume" className="text-gray-700 hover:text-blue-600 font-medium">Resume Review</Link>
-            <Link to="/interview" className="text-gray-700 hover:text-blue-600 font-medium">Interview Simulation</Link>
+            <Link to="/interview" className="text-gray-700 hover:text-blue-600 font-medium">Interview</Link>
+            <Link to="/speech-interview" className="text-gray-700 hover:text-blue-600 font-medium">Live Interview</Link>
             <Link to="/chat" className="text-gray-700 hover:text-blue-600 font-medium">AI Chat</Link>
             <Link to="/posts" className="text-gray-700 hover:text-blue-600 font-medium">Posts</Link>
             {user ? (
@@ -53,6 +55,7 @@ export default function App() {
             <Route path="/" element={<Home />} />
             <Route path="/resume" element={<Resume />} />
             <Route path="/interview" element={<Interview />} />
+            <Route path="/speech-interview" element={<SpeechInterview />} />
             <Route path="/chat" element={<Chat />} />
             <Route path="/posts" element={<Posts />} />
             <Route path="/login" element={<Login />} />
