@@ -43,12 +43,13 @@ async def health():
     return {"status": "ok", "version": "1.0.1"}
 
 # Import and include routers (avoid importing heavy resume router by default)
-from app.routers import interview, auth, guidance, mock, interview_nodb, stt, posts, cv, resume_builder
+from app.routers import interview, auth, guidance, mock, interview_nodb, stt, posts, cv, resume_builder, resume
 
 # Use interview_nodb router instead of interview
 app.include_router(interview_nodb.router, prefix="/api/interview", tags=["interview"])
 app.include_router(auth.router, prefix="/api/auth", tags=["authentication"])
 app.include_router(guidance.router, prefix="/api/guidance", tags=["guidance"])
+app.include_router(resume.router, prefix="/api/resume", tags=["resume"])
 app.include_router(mock.router, prefix="/api/mock", tags=["mock_interview"])
 app.include_router(posts.router, prefix="/api/posts", tags=["posts"])
 app.include_router(stt.router, prefix="/api/stt", tags=["stt"])
