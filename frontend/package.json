@@ -4,9 +4,10 @@
   "private": true,
   "description": "Frontend for Interview Chatbot",
   "scripts": {
-    "dev": "set NODE_OPTIONS=--max-old-space-size=4096 && vite",
-    "build": "set NODE_OPTIONS=--max-old-space-size=4096 && vite build",
-    "preview": "vite preview"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "vercel-build": "vite build"
   },
   "dependencies": {
     "@headlessui/react": "^1.7.17",
