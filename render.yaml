@@ -16,6 +16,10 @@ services:
       # To enable heavy resume parser endpoints, set this to true and switch to full requirements.txt
       - key: ENABLE_RESUME_ROUTER
         value: "false"
+      - key: ENABLE_IMPROVEMENT
+        value: "false"
+      - key: ENABLE_VIDEO_INTERVIEW
+        value: "false"
     healthCheckPath: /health
     
     # Optional: increase request/response timeouts for long AI calls

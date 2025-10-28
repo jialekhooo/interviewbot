@@ -7,6 +7,9 @@ import Interview from "./pages/Interview";
 import SpeechInterview from "./pages/SpeechInterview";
 import Chat from "./pages/Chat";
 import Posts from "./pages/Posts";
+import Forum from "./pages/Forum";
+import VideoInterview from "./pages/VideoInterview";
+import ResumeBuilder from "./pages/ResumeBuilder";
 import Login from "./pages/Login";
 
 function Navigation() {
@@ -23,6 +26,9 @@ function Navigation() {
             <Link to="/speech-interview" className="text-gray-700 hover:text-blue-600 font-medium">Live Interview</Link>
             <Link to="/chat" className="text-gray-700 hover:text-blue-600 font-medium">AI Chat</Link>
             <Link to="/posts" className="text-gray-700 hover:text-blue-600 font-medium">Posts</Link>
+            <Link to="/forum" className="text-gray-700 hover:text-blue-600 font-medium">Forum</Link>
+            <Link to="/video-interview" className="text-gray-700 hover:text-blue-600 font-medium">Video Interview</Link>
+            <Link to="/resume-builder" className="text-gray-700 hover:text-blue-600 font-medium">Resume Builder</Link>
             {user ? (
               <div className="flex items-center gap-4">
                 <span className="text-sm text-gray-600">Hi, {user.username}</span>
@@ -58,6 +64,9 @@ export default function App() {
             <Route path="/speech-interview" element={<SpeechInterview />} />
             <Route path="/chat" element={<Chat />} />
             <Route path="/posts" element={<Posts />} />
+            <Route path="/forum" element={<Forum />} />
+            <Route path="/video-interview" element={<VideoInterview />} />
+            <Route path="/resume-builder" element={<ResumeBuilder />} />
             <Route path="/login" element={<Login />} />
           </Routes>
         </div>
