@@ -1,4 +1,4 @@
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException, Depends
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException, Depends, Form, UploadFile, File
 from fastapi import Request
 from typing import List, Dict
 import json
@@ -78,23 +78,28 @@ from fastapi import status
 async def get_optional_user(current_user: Optional[User] = Depends(get_current_active_user)) -> Optional[User]:
     return current_user
 
+
 @router.post("/start")
 async def start_interview(
-    payload: StartInterviewSession = Depends(),
-    db: Session = Depends(get_db),
-    current_user: Optional[User] = None
+        position: str = Form(...),
+        job_description: str = Form(""),
+        file: UploadFile = File(...),  # Resume is required
+        db: Session = Depends(get_db),
+        current_user: Optional[User] = None
 ):
+    """Start a new interview with resume upload"""
+
     # Use provided user_id or default to 'anonymous'
-    user_id = current_user.username if current_user else payload.user_id or "anonymous"
-    
-    # Skip user validation if not authenticated
-    if current_user and payload.user_id and payload.user_id != current_user.username:
-        raise HTTPException(status_code=400, detail="Invalid user ID")
+    user_id = current_user.username if current_user else "anonymous"
 
     try:
-        position = payload.position
-        difficulty = payload.difficulty
-        q_types = payload.question_types or ["behavioral", "technical"]
+        # Parse the resume
+        from app.utils.file_utils import parser
+        parsed_resume = parser(file)
+
+        # Auto-set difficulty and question types (user doesn't choose)
+        difficulty = "medium"
+        q_types = ["behavioral", "technical"]
 
         session_id = str(uuid.uuid4())
 
@@ -112,23 +117,37 @@ async def start_interview(
         db.commit()
         db.refresh(session)
 
-        # Call GPT
-        system_prompt = f"You are a virtual interviewer for a {position} role."
-        user_prompt = f"Start the interview by asking a {difficulty} level {q_types[0]} question."
+        # Generate first question using resume context
+        from app.prompts.interview_prompt import generate_interview_prompt_text
 
-        result = gpt_service.call_gpt_with_system(system_prompt, user_prompt)
+        prompt_template = generate_interview_prompt_text(
+            resume=json.dumps(parsed_resume, indent=2),
+            job_description=job_description or "",
+            past_conversations="",
+            position=position,
+            difficulty=difficulty,
+            question_type=", ".join(q_types)
+        )
+
+        result = gpt_service.call_gpt(prompt_template, temperature=0.6)
 
         if "error" in result:
             raise HTTPException(status_code=500, detail=f"OpenAI Error: {result['error']}")
 
+        # Extract question from result
         question_text = result.get("raw_output") or result.get("question") or "Tell me about yourself."
 
-        db_question = DBInterviewQuestion(session_id=session_id, question_id= str(uuid.uuid4()), question_text=question_text)
+        db_question = DBInterviewQuestion(
+            session_id=session_id,
+            question_id=str(uuid.uuid4()),
+            question_text=question_text
+        )
 
         # Initialize question_ids array with first question
         if session.question_ids is None:
             session.question_ids = []
         session.question_ids.append(db_question.question_id)
+
         db.add(db_question)
         db.commit()
 
@@ -140,7 +159,7 @@ async def start_interview(
         }
 
     except Exception as e:
-        print("🔥 Interview start failed:", str(e))  # This helps during dev
+        print("🔥 Interview start failed:", str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to start mock interview: {str(e)}"
@@ -149,12 +168,16 @@ async def start_interview(
 
 @router.post("/answer")
 async def submit_answer(
-        payload: UserResponse,
+        question_id: str = Form(...),
+        response_text: str = Form(...),
+        file: UploadFile = File(...),  # Resume for context
         db: Session = Depends(get_db),
         current_user: Optional[User] = None
 ):
+    """Submit answer to interview question"""
+
     # 1. Fetch the question
-    question = db.query(DBInterviewQuestion).filter(DBInterviewQuestion.question_id == payload.question_id).first()
+    question = db.query(DBInterviewQuestion).filter(DBInterviewQuestion.question_id == question_id).first()
     if not question:
         raise HTTPException(status_code=404, detail="Question not found.")
 
@@ -166,34 +189,45 @@ async def submit_answer(
     # 3. Save the user's response
     db_response = DBUserResponse(
         session_id=session.session_id,
-        question_id=payload.question_id,
-        response_text=payload.response_text,
+        question_id=question_id,
+        response_text=response_text,
     )
     db.add(db_response)
     db.commit()
     db.refresh(db_response)
 
-    # 4. Build the history (all previous questions and responses)
+    # 4. Parse resume for context
+    from app.utils.file_utils import parser
+    parsed_resume = parser(file)
+
+    # 5. Build conversation history
     previous_conversation = ""
     previous_responses = db.query(DBUserResponse).filter(DBUserResponse.session_id == session.session_id).all()
     for response in previous_responses:
-        question_text = db.query(DBInterviewQuestion).filter(
+        q_text = db.query(DBInterviewQuestion).filter(
             DBInterviewQuestion.question_id == response.question_id).first().question_text
-        previous_conversation += f"Question: {question_text}\nAnswer: {response.response_text}\n\n"
+        previous_conversation += f"Question: {q_text}\nAnswer: {response.response_text}\n\n"
 
-    # Add the current question and answer to the history
-    previous_conversation += f"Question: {question.question_text}\nAnswer: {payload.response_text}\n\n"
-
-
-    # 7. Check if we should generate a next question or end the interview
+    # 6. Check if we should generate next question or end
     question_count = db.query(DBInterviewQuestion).filter(DBInterviewQuestion.session_id == session.session_id).count()
     MAX_QUESTIONS = 5
-    if question_count < MAX_QUESTIONS:
-        # Generate next question based on the previous conversation history
-        next_question_prompt = f"You are an interviewer. Based on the following interview history, ask the next appropriate question:\n\n{previous_conversation}\n\nAsk a {session.difficulty} level {session.question_types[0]} interview question for a {session.position} role."
 
-        next_question_text = gpt_service.call_gpt(next_question_prompt).get("raw_output",
-                                                                            "Tell me about a recent project.")
+    if question_count < MAX_QUESTIONS:
+        # Generate next question with resume context
+        from app.prompts.interview_prompt import generate_interview_prompt_text
+
+        next_question_prompt = generate_interview_prompt_text(
+            resume=json.dumps(parsed_resume, indent=2),
+            job_description="",  # Could be stored in session if needed
+            past_conversations=previous_conversation,
+            position=session.position,
+            difficulty=session.difficulty,
+            question_type=", ".join(session.question_types)
+        )
+
+        next_result = gpt_service.call_gpt(next_question_prompt, temperature=0.6)
+        next_question_text = next_result.get("raw_output") or next_result.get(
+            "question") or "Tell me about a recent project."
 
         # Save next question
         new_question = DBInterviewQuestion(
@@ -202,10 +236,10 @@ async def submit_answer(
             question_text=next_question_text
         )
 
-        # Update session question_ids with new question
         if session.question_ids is None:
             session.question_ids = []
         session.question_ids.append(new_question.question_id)
+
         db.add(new_question)
         db.commit()
 
@@ -218,18 +252,17 @@ async def submit_answer(
         }
 
     else:
-        # Mark interview as complete
+        # End interview
         session.status = "completed"
         session.end_time = datetime.utcnow()
         db.commit()
 
-        # 5. Generate feedback using GPT (real or fake)
-        prompt = f"You are an interviewer. Here's the conversation history so far:\n\n{previous_conversation}\n\nProvide feedback on the candidate's latest answer."
+        # Generate final feedback
+        feedback_prompt = f"Based on this interview conversation:\n\n{previous_conversation}\n\nProvide overall feedback on the candidate's performance."
 
-        gpt_result = gpt_service.call_gpt(prompt)
-        feedback_text = gpt_result.get("raw_output") or gpt_result.get("feedback") or "Thanks for your response."
+        feedback_result = gpt_service.call_gpt(feedback_prompt)
+        feedback_text = feedback_result.get("raw_output") or "Thank you for completing the interview."
 
-        # 6. Save the feedback
         db_feedback = DBInterviewFeedback(
             session_id=session.session_id,
             feedback_text=feedback_text
