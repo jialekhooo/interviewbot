@@ -33,7 +33,6 @@ class GPTService:
         """Call OpenAI GPT model with a given prompt and return JSON output if possible."""
         if not self._ensure_client():
             return {"error": "OpenAI client not initialized"}
-            
         try:
             response = self.client.chat.completions.create(
                 model=model or self.default_model,
@@ -41,7 +40,8 @@ class GPTService:
                 temperature=temperature
             )
             content = response.choices[0].message.content
-            
+            content = content.lstrip("```json").rstrip("```")
+            print(content, type(content))
             # Try to parse JSON, fallback to raw string
             try:
                 return json.loads(content)
@@ -132,4 +132,4 @@ class FakeGPTService:
 
 # Global instance
 gpt_service = GPTService() if os.getenv("OPENAI_API_KEY") else FakeGPTService()
-gpt_service = FakeGPTService()
+

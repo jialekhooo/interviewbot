@@ -5,32 +5,38 @@ def generate_interview_prompt_text(
     job_description: str = "",
     past_conversations: str = "",
     position: str = "",
-    difficulty: str = "Medium",
-    question_type: str = "General"
+    first: bool = False
 ) -> str:
     """
     Generates a text-based interview prompt with JSON output format.
     """
+    if not first:
+        question = f"2. Generate ONE interview question likely to be asked."
+    else:
+        question = "2. Generate ONE question to introduce the candidate"
 
     prompt = f"""
 You are a professional interviewer. The candidate has the following resume:
 
 {resume or "— No resume provided —"}
 
+Position:
+{position or "--- Not specified ---"}
+
 The job description is:
 
 {job_description or "— No job description provided —"}
-
-Position: {position or "— Not specified —"}
-Difficulty: {difficulty or "Medium"}
 
 Past Conversations:
 
 {past_conversations or "— No previous conversation —"}
 
+Question Types:
+Behavioral, Technical, System Design, Algorithm, Cultural Fit, Case Study
+
 Instructions:
-1. Generate ONE {question_type} interview question likely to be asked.
-2. If no past_conversations are provided, generate a question to introduce the candidate.
+1.Based on the job description and past conversations, choose the difficulty level and question types of the interview.
+{question}
 3. Provide a sample answer for each question based on the candidate's experience.
 4. Structure the output in a single JSON object with keys:
    {{

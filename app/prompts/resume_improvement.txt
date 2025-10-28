@@ -1,14 +1,48 @@
-You are a professional career advisor. Here is the candidate's resume:
+You are a professional career advisor reviewing a resume. Here is the candidate's resume:
 
 {resume_text}
 
-Here is the candidate's Job Description:
+Here is the candidate's target Job Description:
 
 {job_description}
 
-Provide 5 suggestions to make the resume stronger for applying to tech jobs. Include:
-- Missing technical skills or certifications
-- Soft skills highlights
-- Action verbs and quantifiable achievements
-- Overall formatting tips
+Provide a comprehensive resume review with 5 actionable suggestions to make the resume stronger. Structure your feedback clearly:
 
+## Overall Assessment
+Provide a brief 2-3 sentence overview of the resume's current strengths and areas for improvement.
+
+## Key Recommendations
+
+### 1. Technical Skills & Certifications
+Identify any missing technical skills, tools, or certifications that would strengthen the application for the target role. Be specific about which skills to add or emphasize.
+
+### 2. Professional Experience & Impact
+Review how work experience is presented. Suggest ways to better highlight achievements with quantifiable metrics and strong action verbs (e.g., "Increased", "Developed", "Led").
+
+### 3. Content Structure & Clarity
+Evaluate the organization and readability of the resume. Recommend improvements to section ordering, content flow, and information hierarchy.
+
+### 4. Soft Skills & Leadership
+Identify opportunities to demonstrate soft skills, leadership qualities, and interpersonal abilities that employers value.
+
+### 5. Formatting & Presentation
+Provide tips on visual presentation, formatting consistency, use of white space, and overall professional appearance.
+
+## Additional Tips
+Include 2-3 quick wins or easy improvements the candidate can implement immediately.
+
+## Final Thoughts
+End with encouraging words and a summary of the most important next steps.
+
+Keep your language professional yet approachable. Use specific examples from the resume when possible.
+All in JSON format:
+{
+    Overall Assessment: "",
+    Technical Skills & Certifications: "",
+    Professional Experience & Impact: "",
+    Content Structure & Clarity: "",
+    Soft Skills & Leadership: "",
+    Formatting & Presentation: "",
+    Additional Tips: "",
+    Final Thoughts: ""
+}

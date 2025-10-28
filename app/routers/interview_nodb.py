@@ -25,32 +25,44 @@ from fastapi import status
 
 @router.post("/start")
 async def start_interview(
-    position: str = Form(...),  # Using Form for string values from multipart form data
+    position: str = Form(...),
     job_description: str = Form(""),
-    difficulty: DifficultyLevel = Form(DifficultyLevel.MEDIUM),  # Using Form for enum values
-    question_types: List[QuestionType] = Form(...),  # Using Form for list values
-    file: UploadFile = File(...),  # Handle the file upload
+    file: UploadFile = File(...),
+    jd_file: UploadFile = File(None),  # NEW: Optional job description file
 ):
-
     try:
-        q_types = question_types or ["behavioral", "technical"]
+        
+        # Parse resume
         parse_resume = parser(file)
+        
+        # Parse job description from file if provided, otherwise use form data
+        if jd_file:
+            try:
+                job_desc_text = parser(jd_file)
+            except Exception as e:
+                print(f"Error parsing job description file: {e}")
+                job_desc_text = job_description or ""
+        else:
+            job_desc_text = job_description or ""
 
-
-        prompt_template = generate_interview_prompt_text(json.dumps(parse_resume, indent=2), job_description or "", ""
-                                                         , position, difficulty, ", ".join(q_types) )
-
+        # Generate interview question with parsed JD
+        prompt_template = generate_interview_prompt_text(
+            json.dumps(parse_resume, indent=2), 
+            job_desc_text,  # Use parsed job description
+            "",
+            position,
+            True
+        )
+        print(prompt_template)
         result = gpt_service.call_gpt(prompt_template, temperature=0.6)
 
         if "error" in result:
             raise HTTPException(status_code=500, detail=f"OpenAI Error: {result['error']}")
 
-        return {
-            "question": result
-        }
+        return result
 
     except Exception as e:
-        print("🔥 Interview start failed:", str(e))  # This helps during dev
+        print("🔥 Interview start failed:", str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to start mock interview: {str(e)}"
@@ -59,78 +71,101 @@ async def start_interview(
 
 @router.post("/answer")
 async def submit_answer(
-        position: str = Form(...),  # Using Form for string values from multipart form data
-        difficulty: DifficultyLevel = Form(DifficultyLevel.MEDIUM),  # Using Form for enum values
-        job_description: str = Form(""),
-        question_types: List[QuestionType] = Form(...),  # Using Form for list values
-        past_questions: str = Form(...),
-        past_answers: str = Form(""),
-        answer: str = Form(...),
-        file: UploadFile = File(...),  # Handle the file upload
+    position: str = Form(...),
+    job_description: str = Form(""),
+    past_questions: str = Form(...),
+    past_answers: str = Form(""),
+    answer: str = Form(...),
+    file: UploadFile = File(...),
+    jd_file: UploadFile = File(None),  # NEW: Optional job description file
 ):
-
-    q_types = question_types or ["behavioral", "technical"]
+    
+    # Parse resume
     parse_resume = parser(file)
+    
+    # Parse job description from file if provided, otherwise use form data
+    if jd_file:
+        try:
+            job_desc_text = parser(jd_file)
+        except Exception as e:
+            print(f"Error parsing job description file: {e}")
+            job_desc_text = job_description or ""
+    else:
+        job_desc_text = job_description or ""
 
-    # 4. Build the history (all previous questions and responses)
+    # Build the history (all previous questions and responses)
     previous_conversation = ""
-    for question, answer in zip(past_questions.split("||,"),past_answers.split("||,")+[answer]):
-        previous_conversation += f"Question: {question}\nAnswer: {answer}\n"
+    for question, ans in zip(past_questions.split("||,"), past_answers.split("||,") + [answer]):
+        previous_conversation += f"Question: {question}\nAnswer: {ans}\n"
     print(previous_conversation)
 
     MAX_QUESTIONS = 5
-    if len(past_answers.split("||,")) +  1 < MAX_QUESTIONS:
-        # Compose prompt with optional job description
-        prompt_template = generate_interview_prompt_text(json.dumps(parse_resume, indent=2), job_description or "", previous_conversation
-                                                         , position, difficulty, ", ".join(q_types))
+    if len(past_answers.split("||,")) + 1 < MAX_QUESTIONS:
+        # Compose prompt with parsed job description
+        prompt_template = generate_interview_prompt_text(
+            json.dumps(parse_resume, indent=2), 
+            job_desc_text,  # Use parsed job description
+            previous_conversation,
+            position,
+        )
 
         result = gpt_service.call_gpt(prompt_template, temperature=0.6)
 
         if "error" in result:
             raise HTTPException(status_code=500, detail=f"OpenAI Error: {result['error']}")
 
-        return {
-            "question": result
-        }
+        return result
 
     else:
-        return{
+        return {
             "question": "End of Interview"
         }
 
 
 @router.post("/feedback")
-async def get_interview_feedback(position: str = Form(...),  # Using Form for string values from multipart form data
-        difficulty: DifficultyLevel = Form(DifficultyLevel.MEDIUM),  # Using Form for enum values
-        job_description: str = Form(""),
-        question_types: List[QuestionType] = Form(...),  # Using Form for list values
-        past_questions: str = Form(...),
-        past_answers: str = Form(...),
-        file: UploadFile = File(...),  # Handle the file upload
+async def get_interview_feedback(
+    position: str = Form(...),
+    job_description: str = Form(""),
+    past_questions: str = Form(...),
+    past_answers: str = Form(...),
+    file: UploadFile = File(...),
+    jd_file: UploadFile = File(None),  # NEW: Optional job description file
 ):
     """
     Get feedback for a completed interview session
     """
-
-    q_types = question_types or ["behavioral", "technical"]
+    
+    # Parse resume
     parse_resume = parser(file)
+    
+    # Parse job description from file if provided, otherwise use form data
+    if jd_file:
+        try:
+            job_desc_text = parser(jd_file)
+        except Exception as e:
+            print(f"Error parsing job description file: {e}")
+            job_desc_text = job_description or ""
+    else:
+        job_desc_text = job_description or ""
 
     previous_conversation = ""
-    for question, answer in zip(past_questions.split("|"),past_answers.split("|")):
-        previous_conversation += f"Question: {question}\nAnswer: {answer}\n"
+    for question, ans in zip(past_questions.split("||,"), past_answers.split("||,")):
+        previous_conversation += f"Question: {question}\nAnswer: {ans}\n"
     print(previous_conversation)
 
-    prompt_template = generate_final_feedback_prompt_text(json.dumps(parse_resume, indent=2), job_description or "", previous_conversation
-                                                     , position, difficulty, ", ".join(q_types))
+    prompt_template = generate_final_feedback_prompt_text(
+        json.dumps(parse_resume, indent=2), 
+        job_desc_text,  # Use parsed job description
+        previous_conversation,
+        position
+    )
 
     result = gpt_service.call_gpt(prompt_template, temperature=0.6)
 
     if "error" in result:
         raise HTTPException(status_code=500, detail=f"OpenAI Error: {result['error']}")
 
-    return {
-        "feedback": result
-    }
+    return result
 
 
 @router.websocket("/ws/{session_id}")
