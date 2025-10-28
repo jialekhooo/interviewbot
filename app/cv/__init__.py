@@ -1,2 +1,2 @@
 from .face_recognition import detect_faces
-from .emotion_recognition import detect_emotions
+from .emotion_recognition import analyze_video_emotions
