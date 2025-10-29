@@ -1,5 +1,5 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException, Depends, UploadFile, File, Form
-from typing import List, Dict
+from typing import List, Dict, Optional
 import json
 from datetime import datetime
 
@@ -26,7 +26,7 @@ from fastapi import status
 @router.post("/start")
 async def start_interview(
     position: str = Form(...),
-    job_description: str = Form(""),
+    job_description: Optional[str] = Form(None),
     file: UploadFile = File(...),
 ):
     try:
@@ -63,7 +63,7 @@ async def start_interview(
 @router.post("/answer")
 async def submit_answer(
     position: str = Form(...),
-    job_description: str = Form(""),
+    job_description: Optional[str] = Form(None),
     past_questions: str = Form(...),
     past_answers: str = Form(""),
     answer: str = Form(...),
@@ -107,7 +107,7 @@ async def submit_answer(
 @router.post("/feedback")
 async def get_interview_feedback(
     position: str = Form(...),
-    job_description: str = Form(""),
+    job_description: Optional[str] = Form(None),
     past_questions: str = Form(...),
     past_answers: str = Form(...),
     file: UploadFile = File(...),

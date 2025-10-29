@@ -88,7 +88,7 @@ async def get_optional_user(current_user: Optional[User] = Depends(get_current_a
 @router.post("/start")
 async def start_interview(
         position: str = Form(...),
-        job_description: str = Form(""),
+        job_description: Optional[str] = Form(None),
         file: UploadFile = File(...),  # Resume is required
         db: Session = Depends(get_db),
         current_user: Optional[User] = None
