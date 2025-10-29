@@ -364,8 +364,6 @@ export default function CompleteInterviewExperience() {
       formData.append("jd_file", jobDescriptionFile);
       formData.append("position", position);
       formData.append("job_description", ""); // Empty since we're using file
-      
-      };
 
       const response = await fetch('https://interviewbot-rjsi.onrender.com/api/interview/start', {
         method: 'POST',
@@ -405,7 +403,7 @@ export default function CompleteInterviewExperience() {
       formData.append('past_questions', questionHistory.join('||,'));
       formData.append('past_answers', answerHistory.join('||,'));
       formData.append('answer', currentAnswer);
-    }
+
       const response = await fetch('https://interviewbot-rjsi.onrender.com/api/interview/answer', {
         method: 'POST',
         body: formData
