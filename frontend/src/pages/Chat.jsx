@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import api from "../lib/api";
+import ChatSidebar from "../components/ChatSidebar";
 
 export default function Chat() {
   const [sessionId, setSessionId] = useState(null);
@@ -192,9 +193,64 @@ export default function Chat() {
     }
   };
 
+  const loadPastChat = async (pastSessionId) => {
+    setLoading(true);
+    setError("");
+    try {
+      const { data } = await api.get(`/api/interview/past_interview/${pastSessionId}`);
+      
+      // Reconstruct messages from questions, responses, and feedback
+      const reconstructedMessages = [];
+      reconstructedMessages.push({ role: "system", content: "Interview session loaded from history." });
+      
+      // Combine questions and responses
+      if (data.questions && data.responses) {
+        for (let i = 0; i < data.questions.length; i++) {
+          const question = data.questions[i];
+          reconstructedMessages.push({ 
+            role: "assistant", 
+            content: question.question_text 
+          });
+          
+          // Find corresponding response
+          const response = data.responses.find(r => r.question_id === question.question_id);
+          if (response) {
+            reconstructedMessages.push({ 
+              role: "user", 
+              content: response.response_text 
+            });
+          }
+        }
+      }
+      
+      // Add feedback if available
+      if (data.feedback && data.feedback.length > 0) {
+        data.feedback.forEach(fb => {
+          reconstructedMessages.push({ 
+            role: "feedback", 
+            content: fb.feedback_text 
+          });
+        });
+      }
+      
+      setMessages(reconstructedMessages);
+      setSessionId(pastSessionId);
+      setStatus("Loaded past interview session");
+    } catch (err) {
+      const errorMsg = err?.response?.data?.detail || err?.response?.data?.error || err.message || "Failed to load past chat";
+      setError(toDisplay(errorMsg));
+      console.error("Failed to load past chat:", err);
+    } finally {
+      setLoading(false);
+      scrollToBottom();
+    }
+  };
+
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="max-w-3xl mx-auto bg-white shadow-lg rounded-lg flex flex-col h-[75vh]">
+    <div className="flex h-screen">
+      <ChatSidebar onSelectChat={loadPastChat} currentSessionId={sessionId} />
+      <div className="flex-1 container mx-auto px-4 py-8">
+        <div className="max-w-3xl mx-auto bg-white shadow-lg rounded-lg flex flex-col h-[85vh]">
         <div className="border-b px-4 py-3 text-lg font-semibold text-blue-600">AI Interview Chat</div>
         <div ref={scrollerRef} className="flex-1 overflow-auto p-4 space-y-3 bg-gray-50">
           {messages.map((m, idx) => (
@@ -233,6 +289,7 @@ export default function Chat() {
             </button>
           </div>
           {error && <div className="text-red-600 text-sm mt-2">{toDisplay(error)}</div>}
+        </div>
         </div>
       </div>
     </div>

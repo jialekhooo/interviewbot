@@ -28,22 +28,13 @@ async def start_interview(
     position: str = Form(...),
     job_description: str = Form(""),
     file: UploadFile = File(...),
-    jd_file: UploadFile = File(None),  # NEW: Optional job description file
 ):
     try:
-        
         # Parse resume
         parse_resume = parser(file)
         
-        # Parse job description from file if provided, otherwise use form data
-        if jd_file:
-            try:
-                job_desc_text = parser(jd_file)
-            except Exception as e:
-                print(f"Error parsing job description file: {e}")
-                job_desc_text = job_description or ""
-        else:
-            job_desc_text = job_description or ""
+        # Use job description from form data
+        job_desc_text = job_description or ""
 
         # Generate interview question with parsed JD
         prompt_template = generate_interview_prompt_text(
@@ -77,21 +68,12 @@ async def submit_answer(
     past_answers: str = Form(""),
     answer: str = Form(...),
     file: UploadFile = File(...),
-    jd_file: UploadFile = File(None),  # NEW: Optional job description file
 ):
-    
     # Parse resume
     parse_resume = parser(file)
     
-    # Parse job description from file if provided, otherwise use form data
-    if jd_file:
-        try:
-            job_desc_text = parser(jd_file)
-        except Exception as e:
-            print(f"Error parsing job description file: {e}")
-            job_desc_text = job_description or ""
-    else:
-        job_desc_text = job_description or ""
+    # Use job description from form data
+    job_desc_text = job_description or ""
 
     # Build the history (all previous questions and responses)
     previous_conversation = ""
@@ -129,24 +111,15 @@ async def get_interview_feedback(
     past_questions: str = Form(...),
     past_answers: str = Form(...),
     file: UploadFile = File(...),
-    jd_file: UploadFile = File(None),  # NEW: Optional job description file
 ):
     """
     Get feedback for a completed interview session
     """
-    
     # Parse resume
     parse_resume = parser(file)
     
-    # Parse job description from file if provided, otherwise use form data
-    if jd_file:
-        try:
-            job_desc_text = parser(jd_file)
-        except Exception as e:
-            print(f"Error parsing job description file: {e}")
-            job_desc_text = job_description or ""
-    else:
-        job_desc_text = job_description or ""
+    # Use job description from form data
+    job_desc_text = job_description or ""
 
     previous_conversation = ""
     for question, ans in zip(past_questions.split("||,"), past_answers.split("||,")):

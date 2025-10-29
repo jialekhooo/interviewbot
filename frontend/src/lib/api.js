@@ -11,4 +11,22 @@ const api = axios.create({
   timeout: 20000,
 });
 
+// Helper functions for interview API
+export const interviewAPI = {
+  // Fetch all past interviews for the current user
+  getPastInterviews: () => api.get("/api/interview/past_interviews"),
+  
+  // Fetch a specific past interview by session ID
+  getPastInterview: (sessionId) => api.get(`/api/interview/past_interview/${sessionId}`),
+  
+  // Start a new interview
+  startInterview: (data) => api.post("/api/interview/start", data),
+  
+  // Submit an answer
+  submitAnswer: (data) => api.post("/api/interview/answer", data),
+  
+  // Get feedback for a session
+  getFeedback: (sessionId) => api.get(`/api/interview/feedback/${sessionId}`),
+};
+
 export default api;

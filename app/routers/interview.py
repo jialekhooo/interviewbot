@@ -54,22 +54,28 @@ async def get_past_interviews(current_user: User = Depends(get_current_active_us
 @router.get("/past_interview/{session_id}")
 async def get_past_interview(session_id: str, current_user: User = Depends(get_current_active_user), db: Session = Depends(get_db)):
     """
-    Retrieve all past interview sessions for a specific user.
-    Fetch only the required columns and exclude unnecessary data.
+    Retrieve a specific past interview session with all its questions, responses, and feedback.
     """
-    # Select only the required columns from the InterviewSession table
-    past_interview = db.query(DBInterviewSession.session_id).filter(DBInterviewSession.user_id == current_user.username).first()
+    # Fetch the interview session and verify it belongs to the current user
+    past_interview = db.query(DBInterviewSession).filter(
+        DBInterviewSession.session_id == session_id,
+        DBInterviewSession.user_id == current_user.username
+    ).first()
+    
+    if not past_interview:
+        raise HTTPException(status_code=404, detail="Interview session not found or access denied")
+    
     # Fetch related data for questions, responses, and feedback
     questions = db.query(DBInterviewQuestion).filter(DBInterviewQuestion.session_id == session_id).all()
     responses = db.query(DBUserResponse).filter(DBUserResponse.session_id == session_id).all()
     feedback = db.query(DBInterviewFeedback).filter(DBInterviewFeedback.session_id == session_id).all()
 
     # Create the InterviewSession response object
-    return{
-        "session_id":past_interview.session_id,
-        "questions":questions,
-        "responses":responses,
-        "feedback":feedback
+    return {
+        "session_id": past_interview.session_id,
+        "questions": questions,
+        "responses": responses,
+        "feedback": feedback
     }
 
 from fastapi import status
