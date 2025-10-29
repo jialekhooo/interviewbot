@@ -15,6 +15,7 @@ import json
 # Only import video interview model if feature is enabled
 if os.getenv("ENABLE_VIDEO_INTERVIEW", "false").lower() in ("1", "true", "yes", "on"):
     from app.models.video_interview import DBVideoInterview
+
 app = FastAPI(title="Interview Chatbot API",
               description="API for the Interview Preparation Chatbot",
               version="1.0.0")
@@ -33,6 +34,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Base.metadata.drop_all(bind=engine)  # Drops the tables
 Base.metadata.create_all(bind=engine)  # Recreates the tables
+
 @app.get("/")
 async def root():
     return {"message": "Welcome to the Interview Chatbot API"}
@@ -79,14 +81,12 @@ if os.getenv("ENABLE_VIDEO_INTERVIEW", "false").lower() in ("1", "true", "yes", 
     from app.routers import video_interview
     app.include_router(video_interview.router, prefix="/api/video-interview", tags=["video_interview"])
 
-"""
-Temporarily disabled routers left commented to keep the app lightweight.
-Enable only Bubble integration endpoints for Bubble.io frontend.
-"""
+# ============================================================================
+# BUBBLE.IO INTEGRATION - ALWAYS ENABLED
+# ============================================================================
 from app.routers import bubble_integration
-app.include_router(bubble_integration.router, prefix="/api/bubble", tags=["bubble_integration"]) 
+app.include_router(bubble_integration.router, prefix="/api/bubble", tags=["bubble_integration"])
 
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
-
