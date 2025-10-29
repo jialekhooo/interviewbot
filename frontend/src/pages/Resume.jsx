@@ -108,37 +108,39 @@ export default function Resume() {
         <div className="max-w-4xl mx-auto">
           {/* Show results when available */}
           {result && result.review ? (
-            <div className="bg-white shadow-xl rounded-lg overflow-hidden">
-              <div className="bg-gradient-to-r from-green-500 to-blue-500 px-6 py-4">
-                <h2 className="text-2xl font-bold text-white flex items-center">
-                  <span className="mr-2">✓</span> Resume Feedback & Suggestions
-                </h2>
-              </div>
-              <div className="p-8">
-                <div className="prose max-w-none">
-                  <div className="text-gray-800 whitespace-pre-wrap leading-relaxed text-base">
-                    <FeedbackDisplay feedback={result.review} />
-                  </div>
-                </div>
+           <div className="bg-white shadow-xl rounded-lg overflow-hidden">
+    <div className="bg-gradient-to-r from-green-500 to-blue-500 px-6 py-4">
+      <h2 className="text-2xl font-bold text-white flex items-center">
+        <span className="mr-2">✓</span> Resume Feedback & Suggestions
+      </h2>
+    </div>
+    <div className="p-8">
+      <div className="bg-gray-50 rounded-lg p-6 overflow-hidden">
+        <div className="prose prose-slate max-w-none">
+          <div className="text-gray-800 whitespace-pre-wrap leading-relaxed text-base break-words">
+            <FeedbackDisplay feedback={result.review} />
+          </div>
+        </div>
+      </div>
 
                 {/* Action buttons */}
-                <div className="mt-8 pt-6 border-t border-gray-200 flex gap-4 justify-center">
-                  <button
-                    onClick={handleReset}
-                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-                  >
-                    Analyze Another Resume
-                  </button>
-                  <a
-                    href="/resume-builder"
-                    className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
-                  >
-                    Create New Resume
-                  </a>
-                </div>
-              </div>
-            </div>
-          ) : (
+      <div className="mt-8 pt-6 border-t border-gray-200 flex gap-4 justify-center flex-wrap">
+        <button
+          onClick={handleReset}
+          className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+        >
+          Analyze Another Resume
+        </button>
+        <a
+          href="/resume-builder"
+          className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium inline-block"
+        >
+          Create New Resume
+        </a>
+      </div>
+    </div>
+  </div>
+) : (
             <>
               {/* Upload form */}
               <div className="bg-white shadow-lg rounded-lg p-8">
