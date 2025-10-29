@@ -69,6 +69,7 @@ export default function App() {
             <Route path="/video-interview" element={<VideoInterview />} />
             <Route path="/resume-builder" element={<ResumeBuilder />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/realistic-interview" element={<RealisticInterview />} />
           </Routes>
         </div>
       </Router>
