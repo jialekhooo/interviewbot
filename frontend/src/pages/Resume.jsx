@@ -95,63 +95,47 @@ export default function Resume() {
     return <>{String(feedback)}</>;
   };
 
+  const handleReset = () => {
+    setFile(null);
+    setJobDescription("");
+    setResult(null);
+    setError("");
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="max-w-3xl mx-auto bg-white shadow-lg rounded-lg p-8">
-        <h2 className="text-3xl font-bold mb-2 text-blue-600">Resume Ideas</h2>
-        <p className="text-gray-600 mb-6">Get suggestions for your resume and stand out from all other interviewees</p>
-        
-        <form onSubmit={handleUpload} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Upload your Resume
-            </label>
-            <input
-              type="file"
-              accept=".pdf,.docx"
-              onChange={handleFileChange}
-              className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Job Position (Optional)
-            </label>
-            <input
-              type="text"
-              value={jobDescription}
-              onChange={(e) => setJobDescription(e.target.value)}
-              placeholder="e.g., Software Engineer, Data Scientist"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={!file || loading}
-            className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium"
-          >
-            {loading ? "Analyzing..." : "Get Resume Feedback"}
-          </button>
-        </form>
-
-        {error && (
-          <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-600">
-            {error}
-          </div>
-        )}
-
+      <div className="max-w-4xl mx-auto">
+        {/* Show results at the top when available */}
         {result && (
-          <div className="mt-8">
+          <div className="mb-8">
             {result.review ? (
-              <div className="bg-gradient-to-r from-green-50 to-blue-50 border-l-4 border-green-500 p-6 rounded-lg">
-                <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
-                  <span className="mr-2">✓</span> Resume Feedback & Suggestions
-                </h3>
-                <div className="prose max-w-none">
-                  <div className="text-gray-700 whitespace-pre-wrap leading-relaxed">
-                    <FeedbackDisplay feedback={result.review} />
+              <div className="bg-white shadow-xl rounded-lg overflow-hidden">
+                <div className="bg-gradient-to-r from-green-500 to-blue-500 px-6 py-4">
+                  <h2 className="text-2xl font-bold text-white flex items-center">
+                    <span className="mr-2">✓</span> Resume Feedback & Suggestions
+                  </h2>
+                </div>
+                <div className="p-6">
+                  <div className="prose max-w-none">
+                    <div className="text-gray-800 whitespace-pre-wrap leading-relaxed text-base">
+                      <FeedbackDisplay feedback={result.review} />
+                    </div>
+                  </div>
+                  
+                  {/* Action buttons */}
+                  <div className="mt-6 pt-6 border-t border-gray-200 flex gap-4">
+                    <button
+                      onClick={handleReset}
+                      className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                    >
+                      Analyze Another Resume
+                    </button>
+                    <a
+                      href="/resume-builder"
+                      className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+                    >
+                      Create New Resume
+                    </a>
                   </div>
                 </div>
               </div>
@@ -166,18 +150,82 @@ export default function Resume() {
                 </details>
               </div>
             )}
+          </div>
+        )}
 
-            {/* Additional tips section */}
-            <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <h4 className="font-semibold text-blue-900 mb-2">💡 Quick Tips</h4>
-              <ul className="text-sm text-blue-800 space-y-1">
-                <li>• Use action verbs to describe your achievements</li>
-                <li>• Quantify your accomplishments with numbers and metrics</li>
-                <li>• Tailor your resume to match the job description</li>
-                <li>• Keep formatting clean and consistent</li>
-                <li>• Highlight relevant technical skills and certifications</li>
-              </ul>
+        {/* Show upload form only when no results */}
+        {!result && (
+          <div className="bg-white shadow-lg rounded-lg p-8">
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-bold mb-2 text-blue-600">Resume Ideas</h2>
+              <p className="text-gray-600">Upload your current resume to get started!</p>
             </div>
+            
+            <form onSubmit={handleUpload} className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Job position...?
+                </label>
+                <input
+                  type="text"
+                  value={jobDescription}
+                  onChange={(e) => setJobDescription(e.target.value)}
+                  placeholder="e.g., Software Engineer, Data Scientist"
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              <div className="text-center">
+                <label className="inline-block cursor-pointer">
+                  <input
+                    type="file"
+                    accept=".pdf,.docx"
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
+                  <div className="px-8 py-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium inline-block">
+                    {file ? `Selected: ${file.name}` : "Upload your Resume"}
+                  </div>
+                </label>
+                {file && (
+                  <p className="mt-2 text-sm text-gray-600">
+                    File ready: {file.name}
+                  </p>
+                )}
+              </div>
+
+              {error && (
+                <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-center">
+                  {error}
+                </div>
+              )}
+
+              {loading && (
+                <div className="text-center py-4">
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  <p className="mt-2 text-gray-600">Analyzing your resume...</p>
+                </div>
+              )}
+            </form>
+
+            {/* Tips section at bottom when no results */}
+            {!loading && (
+              <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
+                <h4 className="font-semibold text-blue-900 mb-3 text-lg">💡 Quick Tips</h4>
+                <ul className="text-sm text-blue-800 space-y-2">
+                  <li>• Use action verbs to describe your achievements</li>
+                  <li>• Quantify your accomplishments with numbers and metrics</li>
+                  <li>• Tailor your resume to match the job description</li>
+                  <li>• Keep formatting clean and consistent</li>
+                  <li>• Highlight relevant technical skills and certifications</li>
+                </ul>
+                <div className="mt-4 text-center">
+                  <a href="/resume-builder" className="text-blue-600 hover:text-blue-800 font-medium underline">
+                    Don't have a resume yet? Click here.
+                  </a>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
