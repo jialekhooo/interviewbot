@@ -113,6 +113,7 @@ async def start_interview(
             session_id=session_id,
             user_id=user_id,
             position=position,
+            job_description=job_description or "",
             difficulty=difficulty,
             question_types=q_types,
             start_time=datetime.now(),
@@ -224,7 +225,7 @@ async def submit_answer(
 
         next_question_prompt = generate_interview_prompt_text(
             resume=json.dumps(parsed_resume, indent=2),
-            job_description="",  # Could be stored in session if needed
+            job_description=session.job_description or "",
             past_conversations=previous_conversation,
             position=session.position,
             difficulty=session.difficulty,

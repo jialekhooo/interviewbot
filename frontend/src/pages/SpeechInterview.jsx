@@ -5,8 +5,8 @@ export default function CompleteInterviewExperience() {
   // Setup phase
   const [setupComplete, setSetupComplete] = useState(false);
   const [resumeFile, setResumeFile] = useState(null);
-  const [jobDescriptionFile, setJobDescriptionFile] = useState(null);
-  const [position, setPosition] = useState("Software Engineer");
+  const [jobDescription, setJobDescription] = useState("");
+  const [position, setPosition] = useState("");
 
   // Interview state
   const [isListening, setIsListening] = useState(false);
@@ -333,25 +333,14 @@ export default function CompleteInterviewExperience() {
     }
   };
 
-  const handleJobDescriptionChange = (e) => {
-    const file = e.target.files[0];
-    if (file && (file.type === "application/pdf" || file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" || file.type === "text/plain")) {
-      setJobDescriptionFile(file);
-      setError("");
-    } else {
-      setError("Please upload a PDF, DOCX, or TXT file for job description");
-    }
-  };
-
-
   const startSession = async () => {
     if (!resumeFile) {
       setError("Please upload your resume to start the interview");
       return;
     }
 
-    if (!jobDescriptionFile) {
-      setError("Please upload the job description file to start the interview");
+    if (!position.trim()) {
+      setError("Please enter the position you're applying for");
       return;
     }
 
@@ -361,9 +350,8 @@ export default function CompleteInterviewExperience() {
     try {
       const formData = new FormData();
       formData.append("file", resumeFile);
-      formData.append("jd_file", jobDescriptionFile);
       formData.append("position", position);
-      formData.append("job_description", ""); // Empty since we're using file
+      formData.append("job_description", jobDescription);
 
       const response = await fetch('https://interviewbot-rjsi.onrender.com/api/interview/start', {
         method: 'POST',
@@ -397,9 +385,8 @@ export default function CompleteInterviewExperience() {
     try {
       const formData = new FormData();
       formData.append("file", resumeFile);
-      formData.append("jd_file", jobDescriptionFile);
       formData.append('position', position);
-      formData.append('job_description', ""); // Empty since using file
+      formData.append('job_description', jobDescription);
       formData.append('past_questions', questionHistory.join('||,'));
       formData.append('past_answers', answerHistory.join('||,'));
       formData.append('answer', currentAnswer);
@@ -510,6 +497,34 @@ export default function CompleteInterviewExperience() {
             </div>
 
             <div className="space-y-6">
+              {/* Position Input */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Position <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={position}
+                  onChange={(e) => setPosition(e.target.value)}
+                  placeholder="e.g., Software Engineer, Product Manager"
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              {/* Job Description Input */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Job Description (Optional)
+                </label>
+                <textarea
+                  value={jobDescription}
+                  onChange={(e) => setJobDescription(e.target.value)}
+                  placeholder="Paste the job description here..."
+                  rows={4}
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
               {/* Resume Upload */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -532,29 +547,6 @@ export default function CompleteInterviewExperience() {
                 </div>
               </div>
 
-              {/* Job Description Upload */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Upload Job Description <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <input
-                    type="file"
-                    accept=".pdf,.docx,.txt"
-                    onChange={handleJobDescriptionChange}
-                    className="w-full border-2 border-dashed border-gray-300 rounded-lg px-4 py-6 text-center cursor-pointer hover:border-blue-500 transition"
-                    id="jd-upload"
-                  />
-                  {jobDescriptionFile && (
-                    <div className="mt-2 flex items-center gap-2 text-green-600">
-                      <Upload size={16} />
-                      <span className="text-sm font-semibold">{jobDescriptionFile.name}</span>
-                    </div>
-                  )}
-                </div>
-                <p className="text-xs text-gray-500 mt-1">Upload the job description file (PDF, DOCX, or TXT)</p>
-              </div>
-
               {error && (
                 <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
                   {error}
@@ -563,7 +555,7 @@ export default function CompleteInterviewExperience() {
 
               <button
                 onClick={startSession}
-                disabled={loading || !resumeFile || !jobDescriptionFile}
+                disabled={loading || !resumeFile || !position.trim()}
                 className="w-full px-8 py-4 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white font-semibold rounded-lg transition text-lg shadow-lg"
               >
                 {loading ? 'Starting Interview...' : 'Start Interview Session'}

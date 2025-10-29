@@ -21,6 +21,7 @@ class DBInterviewSession(Base):
     session_id = Column(String, unique=True, index=True)
     user_id = Column(String, index=True)
     position = Column(String)
+    job_description = Column(String, nullable=True)
     difficulty = Column(String, default=DifficultyLevel.MEDIUM.value)
     question_types = Column(MutableList.as_mutable(JSON), nullable=True, default=list)
     question_ids = Column(MutableList.as_mutable(JSON), nullable=True, default=list)

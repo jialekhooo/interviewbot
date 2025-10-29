@@ -9,7 +9,8 @@ export default function Interview() {
   // Interview State
   const [started, setStarted] = useState(false);
   const [file, setFile] = useState(null);
-  const [jdFile, setJdFile] = useState(null);
+  const [position, setPosition] = useState("");
+  const [jobDescription, setJobDescription] = useState("");
   const [question, setQuestion] = useState(null);
   const [answer, setAnswer] = useState("");
   const [sessionId, setSessionId] = useState(null);
@@ -195,12 +196,12 @@ export default function Interview() {
 
   const startInterview = async () => {
     if (!file) {
-      setError("Please upload your resume first");
+      setError("Please upload your resume file (PDF/DOCX)");
       return;
     }
 
-    if (!jdFile) {
-      setError("Please upload the job description file (screenshot/PDF/DOCX)");
+    if (!position.trim()) {
+      setError("Please enter the position you're applying for");
       return;
     }
 
@@ -209,9 +210,8 @@ export default function Interview() {
 
     const formData = new FormData();
     formData.append("file", file);
-    formData.append("jd_file", jdFile);
-    formData.append("position", "Position from Job Description");
-    formData.append("job_description", ""); // Empty since we're using file
+    formData.append("position", position);
+    formData.append("job_description", jobDescription);
 
     try {
       const { data } = await api.post("/api/interview/start", formData, {
@@ -246,7 +246,6 @@ export default function Interview() {
 
     const formData = new FormData();
     formData.append("file", file);
-    formData.append("jd_file", jdFile);
     formData.append("question_id", questionId);
     formData.append("response_text", answer);
 
@@ -336,6 +335,32 @@ export default function Interview() {
 
               <div className="mb-4">
                 <label className="block text-sm font-medium mb-2">
+                  Position <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={position}
+                  onChange={(e) => setPosition(e.target.value)}
+                  placeholder="e.g., Software Engineer, Product Manager"
+                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium mb-2">
+                  Job Description (Optional)
+                </label>
+                <textarea
+                  value={jobDescription}
+                  onChange={(e) => setJobDescription(e.target.value)}
+                  placeholder="Paste the job description here..."
+                  rows={4}
+                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium mb-2">
                   Upload Resume <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -351,31 +376,10 @@ export default function Interview() {
                 )}
               </div>
 
-              <div className="mb-4">
-                <label className="block text-sm font-medium mb-2">
-                  Upload Job Description <span className="text-red-500">*</span>
-                  <span className="text-xs text-gray-500 ml-2">(screenshot, PDF, DOCX, or TXT)</span>
-                </label>
-                <input
-                  type="file"
-                  accept=".pdf,.docx,.txt,.png,.jpg,.jpeg"
-                  onChange={(e) => setJdFile(e.target.files[0])}
-                  className="w-full"
-                />
-                {jdFile && (
-                  <p className="text-xs text-green-600 mt-1">
-                    ✓ {jdFile.name}
-                  </p>
-                )}
-                <p className="text-xs text-gray-500 mt-1">
-                  💡 You can upload a screenshot image (.png, .jpg), PDF, DOCX, or text file of the job description
-                </p>
-              </div>
-
               <button
                 onClick={startInterview}
                 className="w-full px-4 py-3 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
-                disabled={loading || !file || !jdFile}
+                disabled={loading || !file || !position.trim()}
               >
                 {loading ? "Starting Interview..." : "Start Mock Interview"}
               </button>
@@ -402,7 +406,8 @@ export default function Interview() {
                   setStarted(false);
                   setIsComplete(false);
                   setFile(null);
-                  setJdFile(null);
+                  setPosition("");
+                  setJobDescription("");
                   setQuestion(null);
                   setAnswer("");
                   setSummary(null);
