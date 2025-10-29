@@ -3,14 +3,13 @@ import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import Home from "./pages/Home";
 import Resume from "./pages/Resume";
-import SpeechInterview from "./pages/SpeechInterview";
+import RealisticInterview from "./pages/RealisticInterview"; // Combined interview
 import Chat from "./pages/Chat";
 import Posts from "./pages/Posts";
 import Forum from "./pages/Forum";
 import VideoInterview from "./pages/VideoInterview";
 import ResumeBuilder from "./pages/ResumeBuilder";
 import Login from "./pages/Login";
-import RealisticInterview from "./pages/RealisticInterview";
 
 function Navigation() {
   const { user, logout } = useAuth();
@@ -22,8 +21,7 @@ function Navigation() {
           <Link to="/" className="text-xl font-bold text-blue-600">Interview Chatbot</Link>
           <div className="flex items-center space-x-6">
             <Link to="/resume" className="text-gray-700 hover:text-blue-600 font-medium">Resume Review</Link>
-            <Link to="/speech-interview" className="text-gray-700 hover:text-blue-600 font-medium">Live Interview</Link>
-            <Link to="/realistic-interview" className="text-gray-700 hover:text-blue-600 font-medium">Realistic AI Interview</Link>
+            <Link to="/interview" className="text-gray-700 hover:text-blue-600 font-medium">AI Interview</Link>
             <Link to="/chat" className="text-gray-700 hover:text-blue-600 font-medium">AI Chat</Link>
             <Link to="/posts" className="text-gray-700 hover:text-blue-600 font-medium">Posts</Link>
             <Link to="/forum" className="text-gray-700 hover:text-blue-600 font-medium">Forum</Link>
@@ -60,14 +58,13 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/resume" element={<Resume />} />
-            <Route path="/speech-interview" element={<SpeechInterview />} />
+            <Route path="/interview" element={<RealisticInterview />} />
             <Route path="/chat" element={<Chat />} />
             <Route path="/posts" element={<Posts />} />
             <Route path="/forum" element={<Forum />} />
             <Route path="/video-interview" element={<VideoInterview />} />
             <Route path="/resume-builder" element={<ResumeBuilder />} />
             <Route path="/login" element={<Login />} />
-            <Route path="/realistic-interview" element={<RealisticInterview />} />
           </Routes>
         </div>
       </Router>
