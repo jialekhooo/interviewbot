@@ -3,7 +3,6 @@ import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import Home from "./pages/Home";
 import Resume from "./pages/Resume";
-import Interview from "./pages/Interview";
 import SpeechInterview from "./pages/SpeechInterview";
 import Chat from "./pages/Chat";
 import Posts from "./pages/Posts";
@@ -23,7 +22,6 @@ function Navigation() {
           <Link to="/" className="text-xl font-bold text-blue-600">Interview Chatbot</Link>
           <div className="flex items-center space-x-6">
             <Link to="/resume" className="text-gray-700 hover:text-blue-600 font-medium">Resume Review</Link>
-            <Link to="/interview" className="text-gray-700 hover:text-blue-600 font-medium">Interview</Link>
             <Link to="/speech-interview" className="text-gray-700 hover:text-blue-600 font-medium">Live Interview</Link>
             <Link to="/realistic-interview" className="text-gray-700 hover:text-blue-600 font-medium">Realistic AI Interview</Link>
             <Link to="/chat" className="text-gray-700 hover:text-blue-600 font-medium">AI Chat</Link>
@@ -62,7 +60,6 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/resume" element={<Resume />} />
-            <Route path="/interview" element={<Interview />} />
             <Route path="/speech-interview" element={<SpeechInterview />} />
             <Route path="/chat" element={<Chat />} />
             <Route path="/posts" element={<Posts />} />
