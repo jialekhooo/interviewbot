@@ -11,6 +11,7 @@ import Forum from "./pages/Forum";
 import VideoInterview from "./pages/VideoInterview";
 import ResumeBuilder from "./pages/ResumeBuilder";
 import Login from "./pages/Login";
+import RealisticInterview from "./pages/RealisticInterview";
 
 function Navigation() {
   const { user, logout } = useAuth();
