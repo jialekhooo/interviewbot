@@ -25,6 +25,7 @@ function Navigation() {
             <Link to="/resume" className="text-gray-700 hover:text-blue-600 font-medium">Resume Review</Link>
             <Link to="/interview" className="text-gray-700 hover:text-blue-600 font-medium">Interview</Link>
             <Link to="/speech-interview" className="text-gray-700 hover:text-blue-600 font-medium">Live Interview</Link>
+            <Link to="/realistic-interview" className="text-gray-700 hover:text-blue-600 font-medium">Realistic AI Interview</Link>
             <Link to="/chat" className="text-gray-700 hover:text-blue-600 font-medium">AI Chat</Link>
             <Link to="/posts" className="text-gray-700 hover:text-blue-600 font-medium">Posts</Link>
             <Link to="/forum" className="text-gray-700 hover:text-blue-600 font-medium">Forum</Link>
