@@ -30,7 +30,7 @@ class ResumeBuilderService:
     def generate_resume(
         self,
         name: str,
-        major: str,
+        course: str,
         education_background: str,
         skills: str,
         internship_experience: str,
@@ -66,7 +66,7 @@ Return the resume in a clean, readable text format."""
 
 **Name:** {name}
 
-**Major/Field of Study:** {major}
+**Course/Field of Study:** {course}
 
 **Education Background:** 
 {education_background}
@@ -141,7 +141,7 @@ class FakeResumeBuilderService:
     def generate_resume(
         self,
         name: str,
-        major: str,
+        course: str,
         education_background: str,
         skills: str,
         internship_experience: str,
@@ -160,13 +160,13 @@ class FakeResumeBuilderService:
 
 PROFESSIONAL SUMMARY
 -------------------
-Motivated {major} student with a strong foundation in technical and analytical skills. 
+Motivated {course} student with a strong foundation in technical and analytical skills. 
 Proven ability to apply theoretical knowledge in practical settings through internship experience.
 
 EDUCATION
 ---------
 {education_background}
-Major: {major}
+Course: {course}
 
 TECHNICAL SKILLS
 ---------------

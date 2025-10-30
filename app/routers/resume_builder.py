@@ -27,7 +27,7 @@ async def generate_resume(
         # Generate resume using AI service
         result = resume_builder_service.generate_resume(
             name=request.name,
-            major=request.major,
+            course=request.course,
             education_background=request.education_background,
             skills=request.skills,
             internship_experience=request.internship_experience,
@@ -63,7 +63,7 @@ async def preview_resume(request: ResumeBuilderRequest):
     try:
         result = resume_builder_service.generate_resume(
             name=request.name,
-            major=request.major,
+            course=request.course,
             education_background=request.education_background,
             skills=request.skills,
             internship_experience=request.internship_experience,
