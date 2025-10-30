@@ -16,41 +16,37 @@ router = APIRouter()
 # Store active interview sessions
 active_sessions: Dict[str, InterviewSession] = {}
 
+
 @router.get("/health")
 async def interview_health():
     """Health check for interview service"""
     return {"status": "ok", "service": "interview", "active_sessions": len(active_sessions)}
 
+
 from fastapi import status
+
 
 @router.post("/start")
 async def start_interview(
-    position: str = Form(...),
-    job_description: Optional[str] = Form(None),
-    file: UploadFile = File(...),
+        position: str = Form(...),
+        job_description: Optional[str] = Form(None),
+        file: UploadFile = File(...),
 ):
     try:
         # Parse resume
         parse_resume = parser(file)
-        
+
         # Use job description from form data
         job_desc_text = job_description or ""
 
-        # Generate interview question with parsed JD
-        prompt_template = generate_interview_prompt_text(
-            json.dumps(parse_resume, indent=2), 
-            job_desc_text,  # Use parsed job description
-            "",
-            position,
-            True
-        )
-        print(prompt_template)
-        result = gpt_service.call_gpt(prompt_template, temperature=0.6)
+        # HARDCODED FIRST QUESTION - Self Introduction
+        first_question = f"Tell me about yourself and your background. What interests you about the {position} position?"
 
-        if "error" in result:
-            raise HTTPException(status_code=500, detail=f"OpenAI Error: {result['error']}")
-
-        return result
+        # Return the hardcoded question directly without calling GPT
+        return {
+            "question": first_question,
+            "sample_answer": f"I am a professional with experience relevant to {position}. I'm interested in this position because..."
+        }
 
     except Exception as e:
         print("🔥 Interview start failed:", str(e))
@@ -62,16 +58,16 @@ async def start_interview(
 
 @router.post("/answer")
 async def submit_answer(
-    position: str = Form(...),
-    job_description: Optional[str] = Form(None),
-    past_questions: str = Form(...),
-    past_answers: str = Form(""),
-    answer: str = Form(...),
-    file: UploadFile = File(...),
+        position: str = Form(...),
+        job_description: Optional[str] = Form(None),
+        past_questions: str = Form(...),
+        past_answers: str = Form(""),
+        answer: str = Form(...),
+        file: UploadFile = File(...),
 ):
     # Parse resume
     parse_resume = parser(file)
-    
+
     # Use job description from form data
     job_desc_text = job_description or ""
 
@@ -85,7 +81,7 @@ async def submit_answer(
     if len(past_answers.split("||,")) + 1 < MAX_QUESTIONS:
         # Compose prompt with parsed job description
         prompt_template = generate_interview_prompt_text(
-            json.dumps(parse_resume, indent=2), 
+            json.dumps(parse_resume, indent=2),
             job_desc_text,  # Use parsed job description
             previous_conversation,
             position,
@@ -106,18 +102,18 @@ async def submit_answer(
 
 @router.post("/feedback")
 async def get_interview_feedback(
-    position: str = Form(...),
-    job_description: Optional[str] = Form(None),
-    past_questions: str = Form(...),
-    past_answers: str = Form(...),
-    file: UploadFile = File(...),
+        position: str = Form(...),
+        job_description: Optional[str] = Form(None),
+        past_questions: str = Form(...),
+        past_answers: str = Form(...),
+        file: UploadFile = File(...),
 ):
     """
     Get feedback for a completed interview session
     """
     # Parse resume
     parse_resume = parser(file)
-    
+
     # Use job description from form data
     job_desc_text = job_description or ""
 
@@ -127,7 +123,7 @@ async def get_interview_feedback(
     print(previous_conversation)
 
     prompt_template = generate_final_feedback_prompt_text(
-        json.dumps(parse_resume, indent=2), 
+        json.dumps(parse_resume, indent=2),
         job_desc_text,  # Use parsed job description
         previous_conversation,
         position
