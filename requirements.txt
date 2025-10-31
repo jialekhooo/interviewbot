@@ -15,6 +15,7 @@ blis
 spacy
 PyPDF2
 python-docx
+reportlab
 requests
 jinja2
 python-jose[cryptography]

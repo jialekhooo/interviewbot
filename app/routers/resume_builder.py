@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 from typing import Optional
 
@@ -7,6 +8,7 @@ from app.schemas.resume_builder import ResumeBuilderRequest, ResumeBuilderRespon
 from app.schemas.auth import User
 from app.routers.auth import get_current_active_user
 from app.services.resume_builder_service import resume_builder_service
+from app.utils.resume_export import generate_resume_pdf, generate_resume_docx
 
 router = APIRouter()
 
@@ -116,4 +118,110 @@ async def improve_resume_section(
         raise HTTPException(
             status_code=500,
             detail=f"Improvement suggestions failed: {str(e)}"
+        )
+
+
+@router.post("/generate-pdf")
+async def generate_resume_pdf_endpoint(
+    request: ResumeBuilderRequest,
+    db: Session = Depends(get_db),
+    current_user: Optional[User] = None
+):
+    """
+    Generate a professional resume and return it as a PDF file
+    For Bubble.io: Call this endpoint and use the response to trigger a file download
+    """
+    try:
+        # Generate resume using AI service
+        result = resume_builder_service.generate_resume(
+            name=request.name,
+            course=request.course,
+            education_background=request.education_background,
+            skills=request.skills,
+            internship_experience=request.internship_experience,
+            additional_info=request.additional_info or ""
+        )
+        
+        if not result.get("success"):
+            raise HTTPException(
+                status_code=500,
+                detail=result.get("error", "Failed to generate resume")
+            )
+        
+        # Generate PDF from resume text
+        pdf_content = generate_resume_pdf(
+            resume_text=result["resume_text"],
+            name=request.name
+        )
+        
+        # Return PDF file
+        filename = f"{request.name.replace(' ', '_')}_Resume.pdf"
+        return Response(
+            content=pdf_content,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f"attachment; filename={filename}",
+                "Access-Control-Expose-Headers": "Content-Disposition"
+            }
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"PDF generation failed: {str(e)}"
+        )
+
+
+@router.post("/generate-docx")
+async def generate_resume_docx_endpoint(
+    request: ResumeBuilderRequest,
+    db: Session = Depends(get_db),
+    current_user: Optional[User] = None
+):
+    """
+    Generate a professional resume and return it as a DOCX file
+    For Bubble.io: Call this endpoint and use the response to trigger a file download
+    """
+    try:
+        # Generate resume using AI service
+        result = resume_builder_service.generate_resume(
+            name=request.name,
+            course=request.course,
+            education_background=request.education_background,
+            skills=request.skills,
+            internship_experience=request.internship_experience,
+            additional_info=request.additional_info or ""
+        )
+        
+        if not result.get("success"):
+            raise HTTPException(
+                status_code=500,
+                detail=result.get("error", "Failed to generate resume")
+            )
+        
+        # Generate DOCX from resume text
+        docx_content = generate_resume_docx(
+            resume_text=result["resume_text"],
+            name=request.name
+        )
+        
+        # Return DOCX file
+        filename = f"{request.name.replace(' ', '_')}_Resume.docx"
+        return Response(
+            content=docx_content,
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            headers={
+                "Content-Disposition": f"attachment; filename={filename}",
+                "Access-Control-Expose-Headers": "Content-Disposition"
+            }
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"DOCX generation failed: {str(e)}"
         )
