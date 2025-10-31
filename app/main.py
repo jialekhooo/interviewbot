@@ -59,7 +59,8 @@ app.include_router(cv.router, prefix="/api/cv", tags=["cv"])
 app.include_router(resume_builder.router, prefix="/api/resume-builder", tags=["resume_builder"])
 
 # Include live_streaming only when explicitly enabled (opencv dependency)
-if os.getenv("ENABLE_LIVE_STREAMING", "true").lower() in ("1", "true", "yes", "on"):
+# Disabled by default in production to avoid opencv dependency
+if os.getenv("ENABLE_LIVE_STREAMING", "false").lower() in ("1", "true", "yes", "on"):
     from app.routers import live_streaming
     app.include_router(live_streaming.router, prefix="/api/live_streaming", tags=["live_streaming"])
 

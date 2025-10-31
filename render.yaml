@@ -20,6 +20,9 @@ services:
         value: "false"
       - key: ENABLE_VIDEO_INTERVIEW
         value: "false"
+      # Disable live streaming in production (requires opencv)
+      - key: ENABLE_LIVE_STREAMING
+        value: "false"
     healthCheckPath: /health
     
     # Optional: increase request/response timeouts for long AI calls
