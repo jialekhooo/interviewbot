@@ -44,14 +44,14 @@ async def health():
     """Health check endpoint for Render/monitoring."""
     return {"status": "ok", "version": "1.0.1"}
 
-# Import and include routers (avoid importing heavy resume router by default)
-from app.routers import interview, auth, guidance, mock, interview_nodb, stt, posts, cv, resume_builder, resume
+# Import and include routers
+from app.routers import interview, auth, guidance, mock, interview_nodb, stt, posts, cv, resume_builder
 
-# Use interview_nodb router instead of interview
-app.include_router(interview_nodb.router, prefix="/api/interview", tags=["interview"])
+# Include both interview routers
+app.include_router(interview.router, prefix="/api/interview", tags=["interview"])  # Database-backed
+app.include_router(interview_nodb.router, prefix="/api/interview_nodb", tags=["interview_nodb"])  # No database
 app.include_router(auth.router, prefix="/api/auth", tags=["authentication"])
 app.include_router(guidance.router, prefix="/api/guidance", tags=["guidance"])
-app.include_router(resume.router, prefix="/api/resume", tags=["resume"])
 app.include_router(mock.router, prefix="/api/mock", tags=["mock_interview"])
 app.include_router(posts.router, prefix="/api/posts", tags=["posts"])
 app.include_router(stt.router, prefix="/api/stt", tags=["stt"])
