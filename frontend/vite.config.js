@@ -10,4 +10,22 @@ export default defineConfig({
       '/static': 'http://localhost:8001',
     },
   },
+  build: {
+    // Optimize build to reduce memory usage
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom', 'react-router-dom'],
+        },
+      },
+    },
+    // Reduce memory usage during build
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true,
+      },
+    },
+  },
 });
