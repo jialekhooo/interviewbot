@@ -76,12 +76,16 @@ async def stt(file: UploadFile = File(...)):
         fd, temp_path = tempfile.mkstemp(suffix=suffix)
         os.close(fd)
         with open(temp_path, "wb") as out:
-            shutil.copyfileobj(file.file, out)  # write the actual upload
+            shutil.copyfileobj(file.file, out)
         await file.close()
 
         with open(temp_path, "rb") as fh:
+            # ✅ FORCE ENGLISH LANGUAGE
             result = client.audio.transcriptions.create(
-                model=MODEL, file=fh, response_format="json"
+                model=MODEL,
+                file=fh,
+                response_format="json",
+                language="en"  # ADD THIS LINE - Force English
             )
         return JSONResponse({"text": result.text})
     except Exception as e:

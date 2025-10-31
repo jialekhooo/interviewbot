@@ -92,69 +92,76 @@ export default function CompleteInterviewExperience() {
 
   // Speech Recognition Setup
   useEffect(() => {
-    if (!setupComplete || !sessionStarted) return;
+  if (!setupComplete || !sessionStarted) return;
 
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    
-    if (!SpeechRecognition) {
-      setError('Speech recognition is not supported in this browser. Please use Chrome or Edge.');
-      return;
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  if (!SpeechRecognition) {
+    setError('Speech recognition is not supported in this browser. Please use Chrome or Edge.');
+    return;
+  }
+
+  const recognition = new SpeechRecognition();
+
+  // ✅ CONFIGURE FOR ENGLISH ONLY
+  recognition.lang = 'en-US'; // US English
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.maxAlternatives = 1;
+
+  recognition.onstart = () => {
+    console.log('🎤 Speech recognition started in ENGLISH (en-US)');
+    startTimeRef.current = Date.now();
+    wordCountRef.current = 0;
+    lastSpeechTimeRef.current = Date.now();
+  };
+
+  recognition.onresult = (event) => {
+    let interim = '';
+    let final = '';
+
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      const transcriptPart = event.results[i][0].transcript;
+      if (event.results[i].isFinal) {
+        final += transcriptPart + ' ';
+      } else {
+        interim += transcriptPart;
+      }
     }
 
-    const recognition = new SpeechRecognition();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = 'en-US';
-
-    recognition.onstart = () => {
-      startTimeRef.current = Date.now();
-      wordCountRef.current = 0;
+    if (final) {
+      setTranscript(prev => prev + final);
+      analyzeTranscript(transcript + final);
       lastSpeechTimeRef.current = Date.now();
-    };
+    }
 
-    recognition.onresult = (event) => {
-      let interim = '';
-      let final = '';
+    setInterimTranscript(interim);
+  };
 
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const transcriptPart = event.results[i][0].transcript;
-        if (event.results[i].isFinal) {
-          final += transcriptPart + ' ';
-        } else {
-          interim += transcriptPart;
-        }
-      }
+  recognition.onerror = (event) => {
+    console.error('Speech recognition error:', event.error);
+    if (event.error === 'no-speech') {
+      setSpeechMetrics(prev => ({ ...prev, pauseCount: prev.pauseCount + 1 }));
+    } else if (event.error === 'language-not-supported') {
+      setError('English language not supported. Please use Chrome or Edge browser.');
+    }
+  };
 
-      if (final) {
-        setTranscript(prev => prev + final);
-        analyzeTranscript(transcript + final);
-        lastSpeechTimeRef.current = Date.now();
-      }
-      
-      setInterimTranscript(interim);
-    };
+  recognition.onend = () => {
+    if (isListening) {
+      recognition.start();
+    }
+  };
 
-    recognition.onerror = (event) => {
-      console.error('Speech recognition error:', event.error);
-      if (event.error === 'no-speech') {
-        setSpeechMetrics(prev => ({ ...prev, pauseCount: prev.pauseCount + 1 }));
-      }
-    };
+  recognitionRef.current = recognition;
 
-    recognition.onend = () => {
-      if (isListening) {
-        recognition.start();
-      }
-    };
+  return () => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+    }
+  };
+}, [isListening, transcript, setupComplete, sessionStarted]);
 
-    recognitionRef.current = recognition;
-
-    return () => {
-      if (recognitionRef.current) {
-        recognitionRef.current.stop();
-      }
-    };
-  }, [isListening, transcript, setupComplete, sessionStarted]);
 
   const startVideo = async () => {
     try {

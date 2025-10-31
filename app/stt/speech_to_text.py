@@ -5,9 +5,11 @@ model = whisper.load_model("small")
 
 def transcribe_audio(file_path):
     """
-    Transcribe audio file to text using Whisper
+    Transcribe audio file to text using Whisper in ENGLISH ONLY
     """
-    result = model.transcribe(file_path)
+    # ✅ FORCE ENGLISH LANGUAGE
+    result = model.transcribe(file_path, language='en')
     return result['text']
+
 
 # print(transcribe_audio("C:/Users/User/PycharmProjects/interviewbot/app/stt/test.wav"))
