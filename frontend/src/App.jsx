@@ -57,7 +57,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/resume" element={<Resume />} />
-            <Route path="/interview" element={<RealisticInterview />} />
+            <Route path="/interview" element={<VideoInterview />} />
             <Route path="/chat" element={<Chat />} />
             <Route path="/posts" element={<Posts />} />
             <Route path="/forum" element={<Forum />} />
