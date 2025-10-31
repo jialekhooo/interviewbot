@@ -123,7 +123,7 @@ async def improve_resume_section(
 
 @router.post("/generate-pdf")
 async def generate_resume_pdf_endpoint(
-    request: ResumeBuilderRequest,
+    resume_request: ResumeBuilderRequest,
     db: Session = Depends(get_db),
     current_user: Optional[User] = None
 ):
@@ -134,12 +134,12 @@ async def generate_resume_pdf_endpoint(
     try:
         # Generate resume using AI service
         result = resume_builder_service.generate_resume(
-            name=request.name,
-            course=request.course,
-            education_background=request.education_background,
-            skills=request.skills,
-            internship_experience=request.internship_experience,
-            additional_info=request.additional_info or ""
+            name=resume_request.name,
+            course=resume_request.course,
+            education_background=resume_request.education_background,
+            skills=resume_request.skills,
+            internship_experience=resume_request.internship_experience,
+            additional_info=resume_request.additional_info or ""
         )
         
         if not result.get("success"):
@@ -151,11 +151,11 @@ async def generate_resume_pdf_endpoint(
         # Generate PDF from resume text
         pdf_content = generate_resume_pdf(
             resume_text=result["resume_text"],
-            name=request.name
+            name=resume_request.name
         )
         
         # Return PDF file
-        filename = f"{request.name.replace(' ', '_')}_Resume.pdf"
+        filename = f"{resume_request.name.replace(' ', '_')}_Resume.pdf"
         return Response(
             content=pdf_content,
             media_type="application/pdf",
@@ -176,7 +176,7 @@ async def generate_resume_pdf_endpoint(
 
 @router.post("/generate-docx")
 async def generate_resume_docx_endpoint(
-    request: ResumeBuilderRequest,
+    resume_request: ResumeBuilderRequest,
     db: Session = Depends(get_db),
     current_user: Optional[User] = None
 ):
@@ -187,12 +187,12 @@ async def generate_resume_docx_endpoint(
     try:
         # Generate resume using AI service
         result = resume_builder_service.generate_resume(
-            name=request.name,
-            course=request.course,
-            education_background=request.education_background,
-            skills=request.skills,
-            internship_experience=request.internship_experience,
-            additional_info=request.additional_info or ""
+            name=resume_request.name,
+            course=resume_request.course,
+            education_background=resume_request.education_background,
+            skills=resume_request.skills,
+            internship_experience=resume_request.internship_experience,
+            additional_info=resume_request.additional_info or ""
         )
         
         if not result.get("success"):
@@ -204,11 +204,11 @@ async def generate_resume_docx_endpoint(
         # Generate DOCX from resume text
         docx_content = generate_resume_docx(
             resume_text=result["resume_text"],
-            name=request.name
+            name=resume_request.name
         )
         
         # Return DOCX file
-        filename = f"{request.name.replace(' ', '_')}_Resume.docx"
+        filename = f"{resume_request.name.replace(' ', '_')}_Resume.docx"
         return Response(
             content=docx_content,
             media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
