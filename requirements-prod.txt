@@ -12,4 +12,5 @@ passlib[bcrypt]
 jinja2
 PyPDF2
 python-docx
+reportlab
 chardet
