@@ -3,7 +3,6 @@ import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import Home from "./pages/Home";
 import Resume from "./pages/Resume";
-import RealisticInterview from "./pages/RealisticInterview"; // Combined interview
 import Chat from "./pages/Chat";
 import Posts from "./pages/Posts";
 import Forum from "./pages/Forum";
