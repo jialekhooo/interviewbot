@@ -124,8 +124,7 @@ async def improve_resume_section(
 @router.post("/generate-pdf")
 async def generate_resume_pdf_endpoint(
     request: ResumeBuilderRequest,
-    db: Session = Depends(get_db),
-    current_user: Optional[User] = None
+    db: Session = Depends(get_db)
 ):
     """
     Generate a professional resume and return it as a PDF file
@@ -134,12 +133,12 @@ async def generate_resume_pdf_endpoint(
     try:
         # Generate resume using AI service
         result = resume_builder_service.generate_resume(
-            name=data.name,
-            course=data.course,
-            education_background=data.education_background,
-            skills=data.skills,
-            internship_experience=data.internship_experience,
-            additional_info=data.additional_info or ""
+            name=request.name,
+            course=request.course,
+            education_background=request.education_background,
+            skills=request.skills,
+            internship_experience=request.internship_experience,
+            additional_info=request.additional_info or ""
         )
         
         if not result.get("success"):
@@ -177,8 +176,7 @@ async def generate_resume_pdf_endpoint(
 @router.post("/generate-docx")
 async def generate_resume_docx_endpoint(
     request: ResumeBuilderRequest,
-    db: Session = Depends(get_db),
-    current_user: Optional[User] = None
+    db: Session = Depends(get_db)
 ):
     """
     Generate a professional resume and return it as a DOCX file
@@ -187,12 +185,12 @@ async def generate_resume_docx_endpoint(
     try:
         # Generate resume using AI service
         result = resume_builder_service.generate_resume(
-            name=data.name,
-            course=data.course,
-            education_background=data.education_background,
-            skills=data.skills,
-            internship_experience=data.internship_experience,
-            additional_info=data.additional_info or ""
+            name=request.name,
+            course=request.course,
+            education_background=request.education_background,
+            skills=request.skills,
+            internship_experience=request.internship_experience,
+            additional_info=request.additional_info or ""
         )
         
         if not result.get("success"):
