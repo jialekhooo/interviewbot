@@ -58,7 +58,7 @@ app.include_router(stt.router, prefix="/api/stt", tags=["stt"])
 app.include_router(cv.router, prefix="/api/cv", tags=["cv"])
 app.include_router(resume_builder.router, prefix="/api/resume-builder", tags=["resume_builder"])
 
-app.include_router(resume.router, prefix="/api/rsume", tags=["resume"])
+app.include_router(resume.router, prefix="/api/resume", tags=["resume"])
 
 # Include live_streaming only when explicitly enabled (opencv dependency)
 # Disabled by default in production to avoid opencv dependency
