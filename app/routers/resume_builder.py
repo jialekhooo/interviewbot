@@ -123,7 +123,7 @@ async def improve_resume_section(
 
 @router.post("/generate-pdf")
 async def generate_resume_pdf_endpoint(
-    data: ResumeBuilderRequest,
+    request: ResumeBuilderRequest,
     db: Session = Depends(get_db),
     current_user: Optional[User] = None
 ):
@@ -151,11 +151,11 @@ async def generate_resume_pdf_endpoint(
         # Generate PDF from resume text
         pdf_content = generate_resume_pdf(
             resume_text=result["resume_text"],
-            name=data.name
+            name=request.name
         )
         
         # Return PDF file
-        filename = f"{data.name.replace(' ', '_')}_Resume.pdf"
+        filename = f"{request.name.replace(' ', '_')}_Resume.pdf"
         return Response(
             content=pdf_content,
             media_type="application/pdf",
@@ -176,7 +176,7 @@ async def generate_resume_pdf_endpoint(
 
 @router.post("/generate-docx")
 async def generate_resume_docx_endpoint(
-    data: ResumeBuilderRequest,
+    request: ResumeBuilderRequest,
     db: Session = Depends(get_db),
     current_user: Optional[User] = None
 ):
@@ -204,11 +204,11 @@ async def generate_resume_docx_endpoint(
         # Generate DOCX from resume text
         docx_content = generate_resume_docx(
             resume_text=result["resume_text"],
-            name=data.name
+            name=request.name
         )
         
         # Return DOCX file
-        filename = f"{data.name.replace(' ', '_')}_Resume.docx"
+        filename = f"{request.name.replace(' ', '_')}_Resume.docx"
         return Response(
             content=docx_content,
             media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
