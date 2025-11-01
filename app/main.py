@@ -32,9 +32,9 @@ app.add_middleware(
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# TEMPORARY: Drop and recreate tables to fix schema mismatch
-Base.metadata.drop_all(bind=engine)  # Drops the tables
-Base.metadata.create_all(bind=engine)  # Recreates the tables
+# Database initialization - drop_all disabled to preserve data
+# Base.metadata.drop_all(bind=engine)  # Drops the tables (use only for schema changes)
+Base.metadata.create_all(bind=engine)  # Creates tables if they don't exist
 
 @app.get("/")
 async def root():
