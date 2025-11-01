@@ -32,7 +32,8 @@ app.add_middleware(
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# Base.metadata.drop_all(bind=engine)  # Drops the tables
+# TEMPORARY: Drop and recreate tables to fix schema mismatch
+Base.metadata.drop_all(bind=engine)  # Drops the tables
 Base.metadata.create_all(bind=engine)  # Recreates the tables
 
 @app.get("/")
