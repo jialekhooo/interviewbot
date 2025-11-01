@@ -45,7 +45,7 @@ async def health():
     return {"status": "ok", "version": "1.0.1"}
 
 # Import and include routers
-from app.routers import interview, auth, guidance, mock, interview_nodb, stt, posts, cv, resume_builder
+from app.routers import interview, auth, guidance, mock, interview_nodb, stt, posts, cv, resume_builder, resume
 
 # Include both interview routers
 app.include_router(interview.router, prefix="/api/interview", tags=["interview"])  # Database-backed
@@ -57,6 +57,8 @@ app.include_router(posts.router, prefix="/api/posts", tags=["posts"])
 app.include_router(stt.router, prefix="/api/stt", tags=["stt"])
 app.include_router(cv.router, prefix="/api/cv", tags=["cv"])
 app.include_router(resume_builder.router, prefix="/api/resume-builder", tags=["resume_builder"])
+
+app.include_router(resume.router, prefix="/api/rsume", tags=["resume"])
 
 # Include live_streaming only when explicitly enabled (opencv dependency)
 # Disabled by default in production to avoid opencv dependency
