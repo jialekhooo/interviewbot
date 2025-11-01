@@ -134,12 +134,12 @@ async def generate_resume_pdf_endpoint(
     try:
         # Generate resume using AI service
         result = resume_builder_service.generate_resume(
-            name=resume_request.name,
-            course=resume_request.course,
-            education_background=resume_request.education_background,
-            skills=resume_request.skills,
-            internship_experience=resume_request.internship_experience,
-            additional_info=resume_request.additional_info or ""
+            name=data.name,
+            course=data.course,
+            education_background=data.education_background,
+            skills=data.skills,
+            internship_experience=data.internship_experience,
+            additional_info=data.additional_info or ""
         )
         
         if not result.get("success"):
