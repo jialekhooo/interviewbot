@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, Body
+from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 from typing import Optional
@@ -123,7 +123,7 @@ async def improve_resume_section(
 
 @router.post("/generate-pdf")
 async def generate_resume_pdf_endpoint(
-    data: ResumeBuilderRequest = Body(..., embed=False),
+    data: ResumeBuilderRequest,
     db: Session = Depends(get_db),
     current_user: Optional[User] = None
 ):
@@ -176,7 +176,7 @@ async def generate_resume_pdf_endpoint(
 
 @router.post("/generate-docx")
 async def generate_resume_docx_endpoint(
-    data: ResumeBuilderRequest = Body(..., embed=False),
+    data: ResumeBuilderRequest,
     db: Session = Depends(get_db),
     current_user: Optional[User] = None
 ):
