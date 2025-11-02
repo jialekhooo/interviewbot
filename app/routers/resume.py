@@ -129,13 +129,13 @@ def analyze_resume(
 
 from typing import List
 
-@router.get("/past-analysis/{user_id}", response_model=List[ResumeAnalysisResponse])
+@router.get("/past-analysis", response_model=List[ResumeAnalysisResponse])
 def get_past_analysis(
-    user_id: str,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    resumes = db.query(DBResume).filter(DBResume.user_id == user_id).all()
+    # Only return resumes for the authenticated user
+    resumes = db.query(DBResume).filter(DBResume.user_id == current_user.username).all()
 
     if not resumes:
         raise HTTPException(status_code=404, detail="No resumes found for this user.")
