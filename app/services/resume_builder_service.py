@@ -29,7 +29,7 @@ class ResumeBuilderService:
     
     def generate_resume(
         self,
-        name: str
+        name: str,
         course: str,
         education_background: str,
         skills: str,
