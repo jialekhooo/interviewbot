@@ -29,7 +29,7 @@ class ResumeBuilderService:
     
     def generate_resume(
         self,
-        name: str,
+        name: str
         course: str,
         education_background: str,
         skills: str,
@@ -198,7 +198,7 @@ ACHIEVEMENTS & INTERESTS
         }
 
 
-# Global instance - use fake service by default for testing
-resume_builder_service = FakeResumeBuilderService()
-# Uncomment below to use real OpenAI service when API key is available
-# resume_builder_service = ResumeBuilderService() if os.getenv("OPENAI_API_KEY") else FakeResumeBuilderService()
+# Global instance - use real OpenAI service
+# resume_builder_service = FakeResumeBuilderService()  # Fake service for testing
+# Use real OpenAI service when API key is available
+resume_builder_service = ResumeBuilderService() if os.getenv("OPENAI_API_KEY") else FakeResumeBuilderService()

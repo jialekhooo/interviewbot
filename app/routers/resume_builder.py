@@ -134,6 +134,12 @@ async def generate_resume_pdf_endpoint(
         # Use payload directly (no 'data' wrapper needed for Raw body type)
         data = payload
         
+        # Validate required fields
+        if not data.get("name") or data.get("name") == "null":
+            raise HTTPException(status_code=400, detail="Name is required and cannot be null")
+        if not data.get("course") or data.get("course") == "null":
+            raise HTTPException(status_code=400, detail="Course is required and cannot be null")
+        
         # Generate resume using AI service
         result = resume_builder_service.generate_resume(
             name=data.get("name", ""),
@@ -188,6 +194,12 @@ async def generate_resume_docx_endpoint(
     try:
         # Use payload directly (no 'data' wrapper needed for Raw body type)
         data = payload
+        
+        # Validate required fields
+        if not data.get("name") or data.get("name") == "null":
+            raise HTTPException(status_code=400, detail="Name is required and cannot be null")
+        if not data.get("course") or data.get("course") == "null":
+            raise HTTPException(status_code=400, detail="Course is required and cannot be null")
         
         # Generate resume using AI service
         result = resume_builder_service.generate_resume(
