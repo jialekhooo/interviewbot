@@ -128,11 +128,11 @@ async def generate_resume_pdf_endpoint(
 ):
     """
     Generate a professional resume and return it as a PDF file
-    For Bubble.io: Send body as {"data": {"name": "...", "course": "...", ...}}
+    For Bubble.io: Send body as {"name": "...", "course": "...", ...} directly
     """
     try:
-        # Extract data from payload
-        data = payload.get("data", {})
+        # Use payload directly (no 'data' wrapper needed for Raw body type)
+        data = payload
         
         # Generate resume using AI service
         result = resume_builder_service.generate_resume(
@@ -183,11 +183,11 @@ async def generate_resume_docx_endpoint(
 ):
     """
     Generate a professional resume and return it as a DOCX file
-    For Bubble.io: Send body as {"data": {"name": "...", "course": "...", ...}}
+    For Bubble.io: Send body as {"name": "...", "course": "...", ...} directly
     """
     try:
-        # Extract data from payload
-        data = payload.get("data", {})
+        # Use payload directly (no 'data' wrapper needed for Raw body type)
+        data = payload
         
         # Generate resume using AI service
         result = resume_builder_service.generate_resume(
