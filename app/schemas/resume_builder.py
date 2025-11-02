@@ -19,6 +19,10 @@ class ResumeBuilderResponse(BaseModel):
     resume_text: str
     resume_html: Optional[str] = None
     suggestions: Optional[list] = None
+    analysis: Optional[dict] = None
+    overall_score: Optional[str] = None
+    strengths: Optional[list] = None
+    weaknesses: Optional[list] = None
     
     class Config:
         from_attributes = True

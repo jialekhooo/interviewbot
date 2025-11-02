@@ -43,44 +43,37 @@ class ResumeBuilderService:
         
         try:
             system_prompt = """You are a professional resume writer and career coach. 
-Your task is to create a well-structured, professional resume based on the information provided.
+Your task is to format and enhance ONLY the information provided by the user.
 
-Format the resume with the following sections:
-1. Contact Information & Summary
-2. Education
-3. Skills
-4. Experience (Internships/Work)
-5. Additional Information (if provided)
+IMPORTANT RULES:
+- DO NOT add contact information, address, phone, or email unless provided
+- DO NOT add sections the user didn't provide information for
+- DO NOT invent experiences, skills, or achievements
+- ONLY format, organize, and enhance what the user gave you
+- Use professional language and action verbs
+- Make bullet points clear and impactful
+- Keep it concise and ATS-friendly
 
-Make the resume:
-- Professional and ATS-friendly
-- Well-formatted with clear sections
-- Action-oriented with strong verbs
-- Quantified where possible
-- Tailored to highlight the candidate's strengths
-- Free of grammatical errors
+Return ONLY these sections based on what was provided:
+- Name (as header)
+- Professional Summary (brief, based on their course and experience)
+- Education (from their education_background)
+- Technical Skills (from their skills)
+- Professional Experience (from their internship_experience)
+- Additional Information (only if provided)
 
 Return the resume in a clean, readable text format."""
 
-            user_prompt = f"""Please create a professional resume with the following information:
+            user_prompt = f"""Format this information into a professional resume:
 
 **Name:** {name}
+**Course:** {course}
+**Education:** {education_background}
+**Skills:** {skills}
+**Experience:** {internship_experience}
+**Additional:** {additional_info if additional_info else "None"}
 
-**Course/Field of Study:** {course}
-
-**Education Background:** 
-{education_background}
-
-**Skills:** 
-{skills}
-
-**Internship/Work Experience:** 
-{internship_experience}
-
-**Additional Information:** 
-{additional_info if additional_info else "None provided"}
-
-Please create a comprehensive, professional resume that highlights this candidate's qualifications and potential."""
+Format this into a clean resume with proper sections and bullet points. DO NOT add information I didn't provide."""
 
             response = self.client.chat.completions.create(
                 model="gpt-4o-mini",
@@ -94,38 +87,49 @@ Please create a comprehensive, professional resume that highlights this candidat
             
             resume_text = response.choices[0].message.content
             
-            # Generate suggestions for improvement
-            suggestions_prompt = f"""Based on this resume, provide 3-5 specific suggestions for improvement:
+            # Generate detailed analysis and suggestions
+            analysis_prompt = f"""Analyze this resume and provide detailed feedback:
 
 {resume_text}
 
-Focus on:
-- Missing information that would strengthen the resume
-- Ways to better quantify achievements
-- Additional skills or experiences to highlight
-- Formatting or structure improvements
+Provide a comprehensive analysis covering:
+1. Overall Assessment - First impression and quality
+2. Strengths - What's done well
+3. Weaknesses - What needs improvement
+4. Missing Elements - What should be added
+5. Specific Suggestions - 5-7 actionable improvements
 
-Return as a JSON array of strings."""
+Return as JSON with this structure:
+{{
+    "overall_score": "X/10",
+    "overall_assessment": "brief summary",
+    "strengths": ["strength 1", "strength 2", ...],
+    "weaknesses": ["weakness 1", "weakness 2", ...],
+    "suggestions": ["suggestion 1", "suggestion 2", ...]
+}}"""
 
-            suggestions_response = self.client.chat.completions.create(
+            analysis_response = self.client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[
-                    {"role": "system", "content": "You are a resume improvement expert. Provide specific, actionable suggestions."},
-                    {"role": "user", "content": suggestions_prompt}
+                    {"role": "system", "content": "You are a resume improvement expert. Provide specific, actionable analysis."},
+                    {"role": "user", "content": analysis_prompt}
                 ],
                 temperature=0.7,
-                max_tokens=500,
+                max_tokens=800,
                 response_format={"type": "json_object"}
             )
             
             import json
-            suggestions_data = json.loads(suggestions_response.choices[0].message.content)
-            suggestions = suggestions_data.get("suggestions", [])
+            analysis_data = json.loads(analysis_response.choices[0].message.content)
             
             return {
                 "success": True,
                 "resume_text": resume_text,
-                "suggestions": suggestions
+                "analysis": analysis_data,
+                "suggestions": analysis_data.get("suggestions", []),
+                "overall_score": analysis_data.get("overall_score", "N/A"),
+                "strengths": analysis_data.get("strengths", []),
+                "weaknesses": analysis_data.get("weaknesses", [])
             }
             
         except Exception as e:
