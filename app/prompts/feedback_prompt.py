@@ -37,15 +37,13 @@ Instructions:
        "strengths": "Highlight key strengths in interview",
        "areas_for_improvement": "Mention areas where the candidate can improve on answering interview questions",
        "overall_assessment": "Summarize critically the candidate's suitability for the role",
-       "sample_answers": [
-            "Detailed sample answer for Question 1 using STAR method (3-4 sentences minimum)",
-            "Detailed sample answer for Question 2 using STAR method (3-4 sentences minimum)",
-            "Detailed sample answer for Question 3 using STAR method (3-4 sentences minimum)",
-            "Detailed sample answer for Question 4 using STAR method (3-4 sentences minimum)",
-            "Detailed sample answer for Question 5 using STAR method (3-4 sentences minimum)"
-       ]
+       "sample_answer_1": "Detailed sample answer for Question 1 using STAR method (3-4 sentences minimum)",
+       "sample_answer_2": "Detailed sample answer for Question 2 using STAR method (3-4 sentences minimum)",
+       "sample_answer_3": "Detailed sample answer for Question 3 using STAR method (3-4 sentences minimum)",
+       "sample_answer_4": "Detailed sample answer for Question 4 using STAR method (3-4 sentences minimum)",
+       "sample_answer_5": "Detailed sample answer for Question 5 using STAR method (3-4 sentences minimum)"
    }}
-6. CRITICAL: You MUST provide exactly 5 sample answers in the array, one for each question asked.
+6. CRITICAL: You MUST provide all 5 sample_answer fields (sample_answer_1 through sample_answer_5).
 7. No extra text should be included in the output, only JSON.
 """
     return prompt
