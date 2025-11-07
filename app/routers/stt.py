@@ -63,7 +63,7 @@ from openai import OpenAI
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-MODEL = "gpt-4o-mini-transcribe"  # or "gpt-4o-transcribe" when available
+MODEL = "gpt-4o-transcribe"  # or "gpt-4o-transcribe" when available
 @router.post("/transcribe_api")
 async def stt(file: UploadFile = File(...)):
     name = (file.filename or "").lower()

@@ -35,8 +35,9 @@ Question Types:
 Behavioral, Technical, System Design, Algorithm, Cultural Fit, Case Study
 
 Instructions:
-1.Based on the job description and past conversations, choose the difficulty level and question types of the interview.
+1. Based on the job description and past conversations, choose the difficulty level and question types of the interview.
 {question}
+2. The question should be closely related to the position and the candidate's background.
 3. Provide a sample answer for each question based on the candidate's experience.
 4. Structure the output in a single JSON object with keys:
    {{

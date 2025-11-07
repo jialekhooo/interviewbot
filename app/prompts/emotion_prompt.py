@@ -15,6 +15,8 @@ Score 0–100 overall using:
 - Posture (15%)
 - Distractions (10%)
 Be fair to cultural and accessibility differences; if visibility is poor, note uncertainty.
+Ensure the field below is a JSON object with the following keys, every key MUST have a value.
+"recommendations
 Return strict JSON:
 {
   "overall": 0-100,
