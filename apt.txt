@@ -9,3 +9,4 @@ libpq-dev
 gcc
 tesseract-ocr
 tesseract-ocr-eng
+ffmpeg

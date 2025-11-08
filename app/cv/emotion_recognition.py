@@ -67,7 +67,20 @@ def analyze_video_emotions(video_path: str, frame_interval: int = 30):
 import os, subprocess, glob
 
 def _run_ffmpeg(cmd: list):
-    subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    """Run ffmpeg command with better error handling"""
+    try:
+        result = subprocess.run(
+            cmd, 
+            check=True, 
+            capture_output=True,
+            text=True
+        )
+        return result
+    except subprocess.CalledProcessError as e:
+        error_msg = f"FFmpeg error: {e.stderr if e.stderr else str(e)}"
+        raise RuntimeError(error_msg)
+    except FileNotFoundError:
+        raise RuntimeError("FFmpeg is not installed. Please install ffmpeg to use video analysis features.")
 
 def extract_scene_frames(video_path: str, outdir: str, scene_thresh: float = 0.4, scale_w: int = 640):
     os.makedirs(outdir, exist_ok=True)

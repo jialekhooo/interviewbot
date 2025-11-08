@@ -52,6 +52,10 @@ SCALE_W = int(os.getenv("SCALE_W", "640"))
 
 @router.post("/analyze_cv/")
 async def evaluate_cv(file: UploadFile = File(...)):
+    """
+    Analyze video for professionalism scoring using CV and AI.
+    Requires ffmpeg to be installed on the system.
+    """
     if file.content_type not in ALLOWED_MIME:
         raise HTTPException(status_code=415, detail="Unsupported video type")
     tmpdir = tempfile.mkdtemp()
@@ -70,13 +74,16 @@ async def evaluate_cv(file: UploadFile = File(...)):
             scale_w=SCALE_W,
         )
         if not images:
-            raise HTTPException(status_code=422, detail="No frames extracted")
+            raise HTTPException(status_code=422, detail="No frames extracted from video. Please ensure the video is valid.")
 
         score, details = score_professionalism_from_images(images)
         return JSONResponse({"score": score, "details": details, "frames": frame_names})
     except HTTPException:
         raise
+    except RuntimeError as e:
+        # FFmpeg or system errors
+        raise HTTPException(status_code=500, detail=f"Video processing error: {str(e)}")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
     finally:
         shutil.rmtree(tmpdir, ignore_errors=True)
