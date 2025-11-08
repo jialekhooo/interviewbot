@@ -167,14 +167,14 @@ async def process_video_interview(
             db.commit()
 
 
-@router.get("/status/{session_id}", response_model=VideoInterviewResponse)
+@router.get("/status/{session_id}")
 async def get_video_interview_status(
     session_id: str,
     db: Session = Depends(get_db),
     current_user: Optional[User] = Depends(get_current_active_user)
 ):
     """
-    Get the status and results of a video interview
+    Get the status of a video interview with helpful status messages
     """
     video_interview = db.query(DBVideoInterview).filter(
         DBVideoInterview.session_id == session_id
@@ -187,7 +187,36 @@ async def get_video_interview_status(
     if current_user and video_interview.user_id != current_user.username:
         raise HTTPException(status_code=403, detail="Not authorized to view this session")
     
-    return video_interview
+    # Build response with status information
+    response = {
+        "session_id": video_interview.session_id,
+        "user_id": video_interview.user_id,
+        "position": video_interview.position,
+        "question_text": video_interview.question_text,
+        "status": video_interview.status,
+        "video_path": video_interview.video_path,
+        "created_at": video_interview.created_at,
+        "has_results": video_interview.status == "completed"
+    }
+    
+    # Add status-specific information
+    if video_interview.status == "pending":
+        response["next_step"] = "Upload video file"
+        response["can_upload"] = True
+    elif video_interview.status == "processing":
+        response["next_step"] = "Wait for processing to complete"
+        response["can_upload"] = False
+    elif video_interview.status == "completed":
+        response["next_step"] = "View results"
+        response["can_upload"] = False
+        response["has_feedback"] = bool(video_interview.feedback)
+        response["has_transcript"] = bool(video_interview.transcript)
+    elif video_interview.status == "failed":
+        response["next_step"] = "Check error and retry"
+        response["can_upload"] = True
+        response["error"] = video_interview.feedback
+    
+    return response
 
 
 @router.get("/results/{session_id}")
@@ -197,7 +226,8 @@ async def get_video_interview_results(
     current_user: Optional[User] = Depends(get_current_active_user)
 ):
     """
-    Get detailed results of a completed video interview
+    Get detailed results of a video interview (works for all statuses)
+    Returns partial results if still processing, or error message if failed
     """
     video_interview = db.query(DBVideoInterview).filter(
         DBVideoInterview.session_id == session_id
@@ -210,22 +240,30 @@ async def get_video_interview_results(
     if current_user and video_interview.user_id != current_user.username:
         raise HTTPException(status_code=403, detail="Not authorized to view this session")
     
-    if video_interview.status != "completed":
-        raise HTTPException(
-            status_code=400,
-            detail=f"Video interview is not completed yet. Current status: {video_interview.status}"
-        )
-    
-    return {
+    # Return results regardless of status
+    result = {
         "session_id": video_interview.session_id,
         "question": video_interview.question_text,
         "position": video_interview.position,
-        "transcript": video_interview.transcript,
-        "feedback": video_interview.feedback,
-        "scores": video_interview.scores,
-        "analysis": video_interview.analysis,
+        "status": video_interview.status,
+        "transcript": video_interview.transcript or "",
+        "feedback": video_interview.feedback or "",
+        "scores": video_interview.scores or {},
+        "analysis": video_interview.analysis or {},
         "created_at": video_interview.created_at
     }
+    
+    # Add status-specific messages
+    if video_interview.status == "processing":
+        result["message"] = "Video is still being processed. Results will be available soon."
+    elif video_interview.status == "pending":
+        result["message"] = "Video upload is pending. Please upload the video file."
+    elif video_interview.status == "failed":
+        result["message"] = "Video processing failed. Please check the feedback for error details."
+    elif video_interview.status == "completed":
+        result["message"] = "Video interview completed successfully."
+    
+    return result
 
 
 @router.get("/user/history")
