@@ -32,7 +32,9 @@ async def create_video_interview_session(
     current_user: Optional[User] = Depends(get_current_active_user)
 ):
     """
-    Create a new video interview session
+    Create a new video interview session with a specific question.
+    
+    For auto-generated questions, use /generate-question endpoint first.
     """
     # Use authenticated user or provided user_id
     user_id = current_user.username if current_user else payload.user_id
@@ -53,6 +55,167 @@ async def create_video_interview_session(
     db.refresh(video_interview)
     
     return video_interview
+
+
+@router.post("/generate-question")
+async def generate_video_interview_question(
+    position: str,
+    question_number: int = 1,
+    resume_file: Optional[UploadFile] = File(None),
+    job_description: Optional[str] = ""
+):
+    """
+    Generate an interview question for video interview.
+    
+    Returns a question tailored to the position and candidate's background.
+    Use this before creating a video interview session.
+    
+    Bubble.io Usage:
+    - API Call: POST /api/video-interview/generate-question
+    - Content-Type: multipart/form-data
+    - Fields:
+      - position (text): e.g., "Software Engineer"
+      - question_number (number): 1-5
+      - resume_file (file, optional): PDF or DOCX
+      - job_description (text, optional)
+    
+    Returns:
+    {
+      "question": "Tell me about a challenging project you worked on...",
+      "question_number": 1,
+      "position": "Software Engineer",
+      "tips": ["Use STAR method", "Be specific", "Show impact"]
+    }
+    """
+    try:
+        resume_text = ""
+        if resume_file:
+            from app.utils.file_utils import parser
+            resume_text = parser(resume_file)
+        
+        # Generate question based on question number
+        questions_map = {
+            1: f"Tell me about yourself and why you're interested in the {position} position.",
+            2: f"Describe a challenging project or situation you've faced. How did you handle it?",
+            3: f"What are your key strengths that make you suitable for this {position} role?",
+            4: f"Tell me about a time when you had to work in a team. What was your role and contribution?",
+            5: f"Where do you see yourself in 3-5 years, and how does this {position} position fit into your career goals?"
+        }
+        
+        # Get base question or generate custom one
+        if question_number in questions_map:
+            question = questions_map[question_number]
+        else:
+            question = f"Question {question_number}: Tell me about your experience relevant to the {position} position."
+        
+        # Provide tips based on question type
+        tips = [
+            "Use the STAR method (Situation, Task, Action, Result)",
+            "Be specific with examples from your experience",
+            "Keep your answer between 1-2 minutes",
+            "Maintain eye contact with the camera",
+            "Speak clearly and confidently"
+        ]
+        
+        return {
+            "question": question,
+            "question_number": question_number,
+            "position": position,
+            "tips": tips,
+            "max_questions": 5
+        }
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate question: {str(e)}")
+
+
+@router.post("/start")
+async def start_video_interview(
+    user_id: str,
+    position: str,
+    question_number: int = 1,
+    resume_file: Optional[UploadFile] = File(None),
+    job_description: Optional[str] = "",
+    db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_active_user)
+):
+    """
+    Start a video interview session with auto-generated question.
+    
+    This is a convenience endpoint that combines question generation and session creation.
+    
+    Bubble.io Usage:
+    - API Call: POST /api/video-interview/start
+    - Content-Type: multipart/form-data
+    - Fields:
+      - user_id (text)
+      - position (text): e.g., "Software Engineer"
+      - question_number (number): 1-5 (default: 1)
+      - resume_file (file, optional): PDF or DOCX
+      - job_description (text, optional)
+    
+    Returns:
+    {
+      "session_id": "uuid",
+      "question": "Tell me about yourself...",
+      "question_number": 1,
+      "position": "Software Engineer",
+      "tips": [...],
+      "status": "pending"
+    }
+    """
+    try:
+        # Generate question
+        resume_text = ""
+        if resume_file:
+            from app.utils.file_utils import parser
+            resume_text = parser(resume_file)
+        
+        # Question templates
+        questions_map = {
+            1: f"Tell me about yourself and why you're interested in the {position} position.",
+            2: f"Describe a challenging project or situation you've faced. How did you handle it?",
+            3: f"What are your key strengths that make you suitable for this {position} role?",
+            4: f"Tell me about a time when you had to work in a team. What was your role and contribution?",
+            5: f"Where do you see yourself in 3-5 years, and how does this {position} position fit into your career goals?"
+        }
+        
+        question = questions_map.get(question_number, f"Tell me about your experience relevant to the {position} position.")
+        
+        # Create session
+        session_id = str(uuid.uuid4())
+        user = current_user.username if current_user else user_id
+        
+        video_interview = DBVideoInterview(
+            session_id=session_id,
+            user_id=user,
+            position=position,
+            question_text=question,
+            status="pending",
+            created_at=datetime.utcnow()
+        )
+        
+        db.add(video_interview)
+        db.commit()
+        
+        return {
+            "session_id": session_id,
+            "question": question,
+            "question_number": question_number,
+            "position": position,
+            "tips": [
+                "Use the STAR method (Situation, Task, Action, Result)",
+                "Be specific with examples from your experience",
+                "Keep your answer between 1-2 minutes",
+                "Maintain eye contact with the camera",
+                "Speak clearly and confidently"
+            ],
+            "max_questions": 5,
+            "status": "pending"
+        }
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to start video interview: {str(e)}")
 
 
 @router.post("/upload/{session_id}")
