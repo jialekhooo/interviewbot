@@ -63,12 +63,23 @@ from openai import OpenAI
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-MODEL = "gpt-4o-transcribe"  # or "gpt-4o-transcribe" when available
+MODEL = "whisper-1"  # OpenAI Whisper model for transcription
+
 @router.post("/transcribe_api")
 async def stt(file: UploadFile = File(...)):
+    """
+    Transcribe audio file using OpenAI Whisper API.
+    Supports MP3, WAV, M4A, and other common audio formats.
+    """
     name = (file.filename or "").lower()
-    if not (name.endswith(".mp3") or name.endswith(".wav")):
-        raise HTTPException(status_code=400, detail="Only MP3 and WAV files are supported")
+    # Expand supported formats
+    supported_formats = (".mp3", ".wav", ".m4a", ".webm", ".mp4", ".mpeg", ".mpga", ".oga", ".ogg")
+    if not name.endswith(supported_formats):
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Unsupported file format. Supported: {', '.join(supported_formats)}"
+        )
+    
     fd = None
     temp_path = None
     try:
@@ -80,16 +91,16 @@ async def stt(file: UploadFile = File(...)):
         await file.close()
 
         with open(temp_path, "rb") as fh:
-            # ✅ FORCE ENGLISH LANGUAGE
+            # Use OpenAI Whisper for transcription
             result = client.audio.transcriptions.create(
                 model=MODEL,
                 file=fh,
                 response_format="json",
-                language="en"  # ADD THIS LINE - Force English
+                language="en"  # Force English language
             )
-        return JSONResponse({"text": result.text})
+        return JSONResponse({"text": result.text, "engine": "whisper-1"})
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Transcription failed: {str(e)}")
     finally:
         if temp_path and os.path.exists(temp_path):
             try:
