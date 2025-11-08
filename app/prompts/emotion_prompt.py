@@ -3,7 +3,7 @@ import os, json, base64
 from typing import List, Tuple
 from openai import OpenAI
 
-MODEL = os.getenv("OPENAI_VISION_MODEL", "gpt-4.1")  # multimodal-capable
+MODEL = os.getenv("OPENAI_VISION_MODEL", "gpt-4o")  # multimodal-capable (gpt-4o, gpt-4o-mini, or gpt-4-turbo)
 
 RUBRIC = """
 You are an interview coach evaluating professionalism from visuals only (silent video).
