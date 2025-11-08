@@ -7,23 +7,31 @@ from fastapi import status
 from fastapi import Body
 from typing import Optional
 
-from app.routers.interview_nodb import submit_answer
-from app.stt.speech_to_text import transcribe_audio
 router = APIRouter()
 
 @router.get("/health")
 async def stt_health():
+    """Health check for STT service"""
     return {
-        "service": "stt"
+        "service": "stt",
+        "endpoints": ["/transcribe", "/transcribe_api"]
     }
 
 @router.post("/transcribe")
-
 async def transcribe_audio_file(file: UploadFile):
     """
-    Transcribe an audio file (e.g. MP3 or WAV) using Whisper.
-    Returns {"text": "..."}
+    Transcribe an audio file using local Whisper model.
+    Note: This endpoint requires the whisper package to be installed.
+    For production, use /transcribe_api which uses OpenAI's API.
     """
+    try:
+        # Lazy import to avoid startup issues
+        from app.stt.speech_to_text import transcribe_audio
+    except ImportError as e:
+        raise HTTPException(
+            status_code=503,
+            detail="Local Whisper model not available. Please use /transcribe_api endpoint instead."
+        )
 
     # Check for allowed file types
     filename = (file.filename or "").lower()
@@ -38,11 +46,10 @@ async def transcribe_audio_file(file: UploadFile):
         with open(temp_path, "wb") as out_file:
             shutil.copyfileobj(file.file, out_file)
 
-        # Transcribe using Whisper
+        # Transcribe using local Whisper
         result = transcribe_audio(temp_path)
 
-        # return submit_answer(result)
-        return {"text": result, "engine": "whisper"}
+        return {"text": result, "engine": "whisper-local"}
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Transcription failed: {str(e)}")
