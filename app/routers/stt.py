@@ -20,23 +20,24 @@ async def stt_health():
 @router.post("/transcribe")
 async def transcribe_audio_file(file: UploadFile):
     """
-    Transcribe an audio file using local Whisper model.
-    Note: This endpoint requires the whisper package to be installed.
-    For production, use /transcribe_api which uses OpenAI's API.
+    Transcribe an audio file using OpenAI Whisper API.
+    Now uses cloud API instead of local model to save memory.
+    Supports MP3, WAV, M4A, and other common audio formats.
     """
-    try:
-        # Lazy import to avoid startup issues
-        from app.stt.speech_to_text import transcribe_audio
-    except ImportError as e:
-        raise HTTPException(
-            status_code=503,
-            detail="Local Whisper model not available. Please use /transcribe_api endpoint instead."
-        )
-
-    # Check for allowed file types
+    from fastapi.responses import JSONResponse
+    from openai import OpenAI
+    
+    # Initialize OpenAI client
+    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    
+    # Check for allowed file types (expanded format support)
     filename = (file.filename or "").lower()
-    if not (filename.endswith(".mp3") or filename.endswith(".wav")):
-        raise HTTPException(status_code=400, detail="Only MP3 and WAV files are supported")
+    supported_formats = (".mp3", ".wav", ".m4a", ".webm", ".mp4", ".mpeg", ".mpga", ".oga", ".ogg")
+    if not filename.endswith(supported_formats):
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Unsupported file format. Supported: {', '.join(supported_formats)}"
+        )
 
     # Save uploaded file to a temp location
     fd, temp_path = tempfile.mkstemp(suffix=os.path.splitext(filename)[1])
@@ -45,11 +46,17 @@ async def transcribe_audio_file(file: UploadFile):
     try:
         with open(temp_path, "wb") as out_file:
             shutil.copyfileobj(file.file, out_file)
-
-        # Transcribe using local Whisper
-        result = transcribe_audio(temp_path)
-
-        return {"text": result, "engine": "whisper-local"}
+        
+        # Transcribe using OpenAI Whisper API
+        with open(temp_path, "rb") as audio_file:
+            result = client.audio.transcriptions.create(
+                model="whisper-1",
+                file=audio_file,
+                response_format="json",
+                language="en"  # Force English language
+            )
+        
+        return {"text": result.text, "engine": "whisper-1"}
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Transcription failed: {str(e)}")
