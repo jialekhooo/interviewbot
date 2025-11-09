@@ -1,16 +1,27 @@
 from fastapi import FastAPI, File, UploadFile
 from fastapi.responses import JSONResponse
-from deepface import DeepFace
-import cv2
 import numpy as np
 import tempfile
 from collections import Counter
 
+# Heavy imports are conditional - only loaded when needed
+# This prevents import errors when deepface/cv2 are not installed
+
 def analyze_video_emotions(video_path: str, frame_interval: int = 30):
     """
-    Analyze emotions frame-by-frame in a video.
+    Analyze emotions frame-by-frame in a video using DeepFace.
+    NOTE: Requires deepface and opencv-python packages.
     frame_interval: number of frames to skip between analyses (higher = faster)
     """
+    try:
+        from deepface import DeepFace
+        import cv2
+    except ImportError:
+        raise RuntimeError(
+            "DeepFace emotion analysis requires 'deepface' and 'opencv-python' packages. "
+            "These are not installed to save memory. Use the professionalism scoring endpoint instead."
+        )
+    
     cap = cv2.VideoCapture(video_path)
     frame_count = 0
     emotion_results = []
