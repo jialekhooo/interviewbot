@@ -52,11 +52,11 @@ Instructions:
        "strengths": "Highlight key strengths in interview",
        "areas_for_improvement": "Mention areas where the candidate can improve on answering interview questions",
        "overall_assessment": "Summarize critically the candidate's suitability for the role",
-       "sample_answer_1": "Detailed sample answer for Question 1 using STAR method that DIRECTLY answers Question 1",
-       "sample_answer_2": "Detailed sample answer for Question 2 using STAR method that DIRECTLY answers Question 2",
-       "sample_answer_3": "Detailed sample answer for Question 3 using STAR method that DIRECTLY answers Question 3",
-       "sample_answer_4": "Detailed sample answer for Question 4 using STAR method that DIRECTLY answers Question 4",
-       "sample_answer_5": "Detailed sample answer for Question 5 using STAR method that DIRECTLY answers Question 5"
+       "sample_answer_1": "Detailed sample answer for Question 1 using STAR method that DIRECTLY answers Question 1 (DO NOT include 'Sample Answer:' label, just provide the answer text)",
+       "sample_answer_2": "Detailed sample answer for Question 2 using STAR method that DIRECTLY answers Question 2 (DO NOT include 'Sample Answer:' label, just provide the answer text)",
+       "sample_answer_3": "Detailed sample answer for Question 3 using STAR method that DIRECTLY answers Question 3 (DO NOT include 'Sample Answer:' label, just provide the answer text)",
+       "sample_answer_4": "Detailed sample answer for Question 4 using STAR method that DIRECTLY answers Question 4 (DO NOT include 'Sample Answer:' label, just provide the answer text)",
+       "sample_answer_5": "Detailed sample answer for Question 5 using STAR method that DIRECTLY answers Question 5 (DO NOT include 'Sample Answer:' label, just provide the answer text)"
    }}
 6. CRITICAL REQUIREMENTS: 
    - You MUST provide all 5 sample_answer fields (sample_answer_1 through sample_answer_5)
@@ -70,6 +70,10 @@ Instructions:
 7. VERIFICATION STEP:
    - Before finalizing each sample answer, ask yourself: "Does this answer DIRECTLY address what the question is asking?"
    - If NO, find a different experience from the resume that better matches the question
-8. No extra text should be included in the output, only JSON.
+8. FORMATTING REQUIREMENTS:
+   - DO NOT include labels like "Sample Answer:", "**Sample Answer:**", or any prefixes in the sample_answer fields
+   - Start directly with the answer content (e.g., "During my time at...", "In my role as...", etc.)
+   - The sample answer should be plain text without any markdown formatting like ** or ##
+9. No extra text should be included in the output, only JSON.
 """
     return prompt
