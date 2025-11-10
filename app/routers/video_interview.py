@@ -457,6 +457,105 @@ async def get_user_video_interview_history(
     }
 
 
+@router.post("/results/batch")
+async def get_batch_video_interview_results(
+    session_ids: List[str],
+    db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_active_user)
+):
+    """
+    Get results for multiple video interview sessions at once.
+    
+    Useful for fetching all 5 question results together.
+    
+    Bubble.io Usage:
+    - API Call: POST /api/video-interview/results/batch
+    - Content-Type: application/json
+    - Body: {"session_ids": ["id1", "id2", "id3", "id4", "id5"]}
+    
+    Returns:
+    {
+      "total": 5,
+      "completed": 3,
+      "processing": 2,
+      "failed": 0,
+      "all_completed": false,
+      "results": [
+        {
+          "session_id": "...",
+          "question_number": 1,
+          "question": "...",
+          "status": "completed",
+          "transcript": "...",
+          "feedback": "...",
+          "scores": {...}
+        },
+        ...
+      ]
+    }
+    """
+    results = []
+    completed_count = 0
+    processing_count = 0
+    failed_count = 0
+    
+    for session_id in session_ids:
+        video_interview = db.query(DBVideoInterview).filter(
+            DBVideoInterview.session_id == session_id
+        ).first()
+        
+        if not video_interview:
+            results.append({
+                "session_id": session_id,
+                "status": "not_found",
+                "error": "Session not found"
+            })
+            failed_count += 1
+            continue
+        
+        # Verify user ownership if authenticated
+        if current_user and video_interview.user_id != current_user.username:
+            results.append({
+                "session_id": session_id,
+                "status": "unauthorized",
+                "error": "Not authorized"
+            })
+            failed_count += 1
+            continue
+        
+        # Add result
+        result = {
+            "session_id": video_interview.session_id,
+            "question": video_interview.question_text,
+            "position": video_interview.position,
+            "status": video_interview.status,
+            "transcript": video_interview.transcript or "",
+            "feedback": video_interview.feedback or "",
+            "scores": video_interview.scores or {},
+            "analysis": video_interview.analysis or {},
+            "created_at": video_interview.created_at
+        }
+        
+        # Count statuses
+        if video_interview.status == "completed":
+            completed_count += 1
+        elif video_interview.status == "processing":
+            processing_count += 1
+        elif video_interview.status == "failed":
+            failed_count += 1
+        
+        results.append(result)
+    
+    return {
+        "total": len(session_ids),
+        "completed": completed_count,
+        "processing": processing_count,
+        "failed": failed_count,
+        "all_completed": completed_count == len(session_ids),
+        "results": results
+    }
+
+
 @router.delete("/delete/{session_id}")
 async def delete_video_interview(
     session_id: str,
