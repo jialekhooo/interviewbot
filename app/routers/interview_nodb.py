@@ -30,11 +30,11 @@ from fastapi import status
 async def start_interview(
         position: str = Form(...),
         job_description: Optional[str] = Form(None),
-        file: UploadFile = File(...),
+        file: Optional[UploadFile] = File(None),
 ):
     try:
-        # Parse resume
-        parse_resume = parser(file)
+        # Parse resume (optional)
+        parse_resume = parser(file) if file else ""
 
         # Use job description from form data
         job_desc_text = job_description or ""
@@ -63,10 +63,10 @@ async def submit_answer(
         past_questions: str = Form(...),
         past_answers: str = Form(""),
         answer: str = Form(...),
-        file: UploadFile = File(...),
+        file: Optional[UploadFile] = File(None),
 ):
-    # Parse resume
-    parse_resume = parser(file)
+    # Parse resume (optional)
+    parse_resume = parser(file) if file else ""
 
     # Use job description from form data
     job_desc_text = job_description or ""
