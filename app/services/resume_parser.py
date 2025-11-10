@@ -1,7 +1,6 @@
 import os
 import re
 import json
-import spacy
 import pdfplumber
 from docx import Document
 from typing import Dict, Any, Optional, List
@@ -15,10 +14,15 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Load English language model for NLP (optional)
+# Spacy is optional - only loaded if installed
+nlp = None
 try:
+    import spacy
     nlp = spacy.load("en_core_web_sm")
+except ImportError:
+    logger.warning("spaCy not installed. Resume parsing will use basic text extraction only.")
 except Exception as e:
-    logger.warning("spaCy model 'en_core_web_sm' not found. Resume parsing will be basic. To enable NLP features, install the model: python -m spacy download en_core_web_sm")
+    logger.warning(f"spaCy model 'en_core_web_sm' not found: {e}. Resume parsing will be basic. To enable NLP features, install: pip install spacy && python -m spacy download en_core_web_sm")
     nlp = None
 
 class ResumeParser:
