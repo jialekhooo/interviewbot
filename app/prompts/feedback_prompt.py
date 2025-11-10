@@ -28,12 +28,24 @@ Instructions:
 2. Assess the candidate's strengths and areas for improvement on interview performance.
 3. Provide a summary of the candidate's suitability for the role on interview performance.
 4. For EACH of the 5 interview questions asked in the past conversations:
-    - CAREFULLY READ the actual question that was asked
-    - Provide a **detailed sample answer** (minimum 3-4 sentences) that DIRECTLY ANSWERS that specific question
-    - Use examples from the candidate's resume and experience that are RELEVANT to the question
+    - STEP 1: CAREFULLY READ the EXACT question that was asked word-by-word
+    - STEP 2: IDENTIFY the KEY TOPIC of the question (e.g., "leadership from NS", "learning new technology", "managing events", "teamwork")
+    - STEP 3: Find experiences from the candidate's resume that DIRECTLY relate to that KEY TOPIC
+    - STEP 4: Craft a sample answer that EXPLICITLY addresses the question using those relevant experiences
     - Each sample answer MUST demonstrate the STAR method (Situation, Task, Action, Result)
+    - The sample answer MUST use the SAME KEYWORDS from the question (e.g., if question mentions "leadership from NS", answer must mention NS leadership experience)
+    - DO NOT use random unrelated experiences from the resume
     - DO NOT reuse the same example for multiple questions
-    - Ensure the sample answer matches the question topic (e.g., if the question is about learning a new technology, the answer should be about learning a new technology, NOT about National Service or unrelated topics)
+    
+    CRITICAL EXAMPLES:
+    ❌ WRONG: Question asks about "leadership from NS" → Answer talks about "Financial Controller budget planning"
+    ✅ CORRECT: Question asks about "leadership from NS" → Answer talks about "Platoon Sergeant leading team in NS"
+    
+    ❌ WRONG: Question asks about "learning new programming language" → Answer talks about "National Service operations"
+    ✅ CORRECT: Question asks about "learning new programming language" → Answer talks about "Learning React for internship project"
+    
+    ❌ WRONG: Question asks about "managing events and diverse teams" → Answer talks about "Welfare Manager team bonding"
+    ✅ CORRECT: Question asks about "managing events and diverse teams" → Answer talks about "Organizing NTU Hall events with diverse committee members"
 5. Structure the output in a single JSON object with keys:
    {{
        "final_feedback": "Provide the final feedback based on the candidate's performance",
@@ -46,10 +58,18 @@ Instructions:
        "sample_answer_4": "Detailed sample answer for Question 4 using STAR method that DIRECTLY answers Question 4",
        "sample_answer_5": "Detailed sample answer for Question 5 using STAR method that DIRECTLY answers Question 5"
    }}
-6. CRITICAL: 
+6. CRITICAL REQUIREMENTS: 
    - You MUST provide all 5 sample_answer fields (sample_answer_1 through sample_answer_5)
    - Each sample answer MUST be relevant to its corresponding question
    - DO NOT give generic answers or reuse the same story for different questions
-7. No extra text should be included in the output, only JSON.
+   - MATCH THE KEYWORDS: If the question mentions "National Service", your answer MUST mention National Service
+   - MATCH THE KEYWORDS: If the question mentions "leadership", your answer MUST demonstrate leadership
+   - MATCH THE KEYWORDS: If the question mentions "events", your answer MUST be about organizing/managing events
+   - MATCH THE KEYWORDS: If the question mentions "learning new technology", your answer MUST be about learning a new technology
+   - READ THE QUESTION CAREFULLY before selecting which resume experience to use
+7. VERIFICATION STEP:
+   - Before finalizing each sample answer, ask yourself: "Does this answer DIRECTLY address what the question is asking?"
+   - If NO, find a different experience from the resume that better matches the question
+8. No extra text should be included in the output, only JSON.
 """
     return prompt
